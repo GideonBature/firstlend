@@ -68,6 +68,60 @@ interface UpdateProfileRequest {
 }
 
 /**
+ * Loan API Types
+ */
+interface LoanType {
+  id: string;
+  name: string;
+  description?: string;
+  minAmount: number;
+  maxAmount: number;
+  interestRate: number;
+  minDuration: number;
+  maxDuration: number;
+  isActive: boolean;
+}
+
+interface MyLoansResponse {
+  loans: LoanResponse[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+interface CreateLoanRequest {
+  loanTypeName: string;
+  principal: number;
+  rate?: number;
+  term: number;
+  employmentStatus: string;
+  monthlyIncome: number;
+  purpose: string;
+}
+
+interface LoanResponse {
+  id: string;
+  borrowerId: string;
+  borrowerName: string;
+  borrowerEmail: string;
+  loanTypeId: string;
+  loanTypeName: string;
+  loanTypeInterest: number;
+  status: string;
+  principal: number;
+  rate: number;
+  term: number;
+  outstandingBalance: number;
+  amountDue: number;
+  employmentStatus: string;
+  monthlyIncome: number;
+  purpose: string;
+  nextPaymentDate: string;
+  createdAt: string;
+  dueAt: string;
+}
+
+/**
  * Generic fetch wrapper with error handling
  */
 async function fetchApi<T>(
@@ -253,6 +307,50 @@ export const authApi = {
     return fetchApi<CurrentUserResponse>('/auth/update-profile', {
       method: 'PUT',
       body: JSON.stringify(payload),
+    }, true);
+  },
+};
+
+/**
+ * Loan API calls
+ */
+export const loanApi = {
+  /**
+   * Apply for a new loan
+   */
+  async applyLoan(payload: CreateLoanRequest): Promise<ApiResponse<LoanResponse>> {
+    return fetchApi<LoanResponse>('/loan', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }, true);
+  },
+
+  /**
+   * Get loan types available
+   */
+  async getLoanTypes(page: number = 1, pageSize: number = 50): Promise<ApiResponse<LoanType[]>> {
+    return fetchApi<LoanType[]>(`/loantype?page=${page}&pageSize=${pageSize}`, {
+      method: 'GET',
+    }, true);
+  },
+
+  /**
+   * Get user's loans
+   */
+  async getMyLoans(params?: { page?: number; pageSize?: number }): Promise<ApiResponse<LoanResponse[]>> {
+    const page = params?.page || 1;
+    const pageSize = params?.pageSize || 10;
+    return fetchApi<LoanResponse[]>(`/Loan/my-loans?page=${page}&pageSize=${pageSize}`, {
+      method: 'GET',
+    }, true);
+  },
+
+  /**
+   * Get loan details
+   */
+  async getLoanDetails(loanId: string): Promise<ApiResponse<any>> {
+    return fetchApi<any>(`/loan/${loanId}`, {
+      method: 'GET',
     }, true);
   },
 };
