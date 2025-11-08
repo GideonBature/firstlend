@@ -1,74 +1,80 @@
-# Welcome to your Lovable project
+# FirstLend - Digital Loan Management System
 
-## Project info
+A modern web application for loan management, built with React, TypeScript, and Node.js backend.
 
-**URL**: https://lovable.dev/projects/56977180-b764-445f-a55b-0172123b4761
+## Project Overview
 
-## How can I edit this code?
+**FirstLend** is a comprehensive loan management platform that enables customers to apply for loans, make payments, and track their loan status, while administrators can manage applications, approve/reject loans, and monitor system operations.
 
-There are several ways of editing your application.
+### Key Features
 
-**Use Lovable**
+- **Authentication**: Secure login/registration for customers and admins
+- **Customer Portal**: Apply for loans, view loan history, make payments
+- **Admin Dashboard**: Manage applications, customers, payments, and reports
+- **Real-time Updates**: Live dashboard analytics and metrics
+- **Responsive Design**: Works seamlessly on desktop and mobile devices
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/56977180-b764-445f-a55b-0172123b4761) and start prompting.
+## Tech Stack
 
-Changes made via Lovable will be committed automatically to this repo.
+- **Frontend**: React 18, TypeScript, Tailwind CSS, Shadcn UI
+- **Backend**: Node.js with JWT authentication
+- **Database**: PostgreSQL
+- **Build Tool**: Vite
 
-**Use your preferred IDE**
+## Quick Start
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+### Prerequisites
+- Node.js & npm installed
+- Backend running on `http://localhost:5128`
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
+### Installation
 
 ```sh
-# Step 1: Clone the repository using the project's Git URL.
+# Clone the repository
 git clone <YOUR_GIT_URL>
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+# Navigate to project directory
+cd firstlend
 
-# Step 3: Install the necessary dependencies.
+# Install dependencies
 npm i
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+# Start development server
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+The application will be available at `http://localhost:5173`
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+## Frontend Integration
 
-**Use GitHub Codespaces**
+The frontend is fully integrated with the backend authentication system. Key endpoints:
+- `POST /auth/register` - User registration
+- `POST /auth/login` - User login
+- `POST /auth/logout` - User logout
+- `GET /auth/me` - Get current user info
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+For detailed integration documentation, see [INTEGRATION_GUIDE.md](./INTEGRATION_GUIDE.md)
 
-## What technologies are used for this project?
+## Project Structure
 
-This project is built with:
+```
+src/
+├── pages/          # Route pages
+├── components/     # Reusable UI components
+├── contexts/       # Auth context for state management
+├── services/       # API communication layer
+├── hooks/          # Custom React hooks
+└── lib/            # Utilities
+```
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+## Development
 
-## How can I deploy this project?
+- **Linting**: `npm run lint`
+- **Build**: `npm run build`
+- **Preview**: `npm run preview`
 
-Simply open [Lovable](https://lovable.dev/projects/56977180-b764-445f-a55b-0172123b4761) and click on Share -> Publish.
+## Documentation
 
-## Can I connect a custom domain to my Lovable project?
+- [Backend Documentation](./backend.md) - Backend API specifications
+- [Integration Guide](./INTEGRATION_GUIDE.md) - Frontend-backend integration details
 
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
-# firstlend

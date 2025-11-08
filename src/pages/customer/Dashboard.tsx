@@ -1,0 +1,311 @@
+import { useNavigate } from "react-router-dom";
+import { CustomerLayout } from "@/components/customer/CustomerLayout";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart, PieChart, Pie, Cell } from "recharts";
+import { DollarSign, TrendingUp, Calendar, Lightbulb, X, Brain, Handshake } from "lucide-react";
+
+const paymentTrendData = [
+  { month: "Jan", amount: 0 },
+  { month: "Feb", amount: 100 },
+  { month: "Mar", amount: 150 },
+  { month: "Apr", amount: 200 },
+  { month: "May", amount: 250 },
+  { month: "Jun", amount: 300 },
+  { month: "Jul", amount: 280 },
+  { month: "Aug", amount: 320 },
+  { month: "Sep", amount: 350 },
+  { month: "Oct", amount: 400 },
+];
+
+const creditScoreTrendData = [
+  { month: "Jan", score: 695 },
+  { month: "Feb", score: 700 },
+  { month: "Mar", score: 705 },
+  { month: "Apr", score: 710 },
+  { month: "May", score: 715 },
+  { month: "Jun", score: 718 },
+  { month: "Jul", score: 720 },
+  { month: "Aug", score: 720 },
+  { month: "Sep", score: 720 },
+  { month: "Oct", score: 720 },
+];
+
+const recentTransactions = [
+  { date: "2024-09-25", type: "Repayment", amount: "₦180,238", status: "Successful" },
+  { date: "2024-09-25", type: "Repayment", amount: "₦180,238", status: "Successful" },
+  { date: "2024-10-30", type: "Repayment", amount: "₦232,285", status: "Successful" },
+  { date: "2024-10-26", type: "Repayment", amount: "₦23,154", status: "Successful" },
+  { date: "2024-10-10", type: "Repayment", amount: "₦9,156", status: "Failed" },
+];
+
+const CustomerDashboard = () => {
+  const navigate = useNavigate();
+  
+  return (
+    <CustomerLayout>
+      <div className="space-y-6">
+        {/* Welcome Section */}
+        <div>
+          <h1 className="text-3xl font-bold mb-2">Welcome back, Adewale!</h1>
+          <p className="text-muted-foreground">Here's what's happening with your loans today.</p>
+        </div>
+
+        {/* Alert Banner */}
+        <Card className="border-yellow-200 bg-yellow-50">
+          <CardContent className="p-4">
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex items-start gap-3">
+                <Lightbulb className="w-5 h-5 text-yellow-600 mt-0.5" />
+                <div>
+                  <p className="font-semibold text-sm">
+                    Excellent Payment Record! You've made 6 on-time payments. Keep it up to improve your credit score!
+                  </p>
+                </div>
+              </div>
+              <Button variant="ghost" size="icon" className="h-8 w-8">
+                <X className="w-4 h-4" />
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Key Metrics Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <Card>
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Active Loan Balance</CardTitle>
+                <DollarSign className="w-5 h-5 text-muted-foreground" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold text-green-600 mb-2">₦20,604,155</div>
+              <Button variant="outline" size="sm">Action</Button>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Total Repaid Amount</CardTitle>
+                <TrendingUp className="w-5 h-5 text-green-600" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold text-green-600">₦8,239,104</div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Next Payment</CardTitle>
+                <Calendar className="w-5 h-5 text-muted-foreground" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold mb-1">₦180,238</div>
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-muted-foreground">Due: 2024-11-25</p>
+                <Badge className="bg-green-500 hover:bg-green-600 text-white">Paid</Badge>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Left Column */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* Personal Loan Overview */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Personal Loan Overview</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Loan ID</p>
+                    <p className="font-semibold">LN-001</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Next Payment</p>
+                    <p className="font-semibold">₦180,238</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Interest Rate</p>
+                    <p className="font-semibold">15%</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Due Date</p>
+                    <p className="font-semibold">2024-11-25</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Tenure</p>
+                    <p className="font-semibold">6 of 12 months</p>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">Progress</span>
+                    <span className="font-semibold">54% Paid</span>
+                  </div>
+                  <Progress value={54} className="h-3" />
+                </div>
+                <Button className="w-full">Repay Now</Button>
+              </CardContent>
+            </Card>
+
+            {/* Payment History Trend */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Payment History Trend</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                  <AreaChart data={paymentTrendData}>
+                    <defs>
+                      <linearGradient id="colorPayment" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#F4C430" stopOpacity={0.8}/>
+                        <stop offset="95%" stopColor="#F4C430" stopOpacity={0}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="month" />
+                    <YAxis />
+                    <Tooltip />
+                    <Area type="monotone" dataKey="amount" stroke="#F4C430" fillOpacity={1} fill="url(#colorPayment)" />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+
+            {/* Recent Transactions */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Recent Transactions</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>DATE</TableHead>
+                      <TableHead>TYPE</TableHead>
+                      <TableHead>AMOUNT</TableHead>
+                      <TableHead>STATUS</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {recentTransactions.map((transaction, index) => (
+                      <TableRow key={index}>
+                        <TableCell>{transaction.date}</TableCell>
+                        <TableCell>{transaction.type}</TableCell>
+                        <TableCell>{transaction.amount}</TableCell>
+                        <TableCell>
+                          {transaction.status === "Successful" ? (
+                            <Badge className="bg-green-500 hover:bg-green-600 text-white">{transaction.status}</Badge>
+                          ) : (
+                            <Badge className="bg-red-500 hover:bg-red-600 text-white">{transaction.status}</Badge>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Right Column */}
+          <div className="space-y-6">
+            {/* Credit Score */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Credit Score</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex flex-col items-center">
+                  <div className="relative w-32 h-32">
+                    <div className="absolute inset-0 rounded-full border-8 border-green-500"></div>
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="text-center">
+                        <div className="text-3xl font-bold">720</div>
+                        <div className="text-sm text-muted-foreground">Very Good</div>
+                      </div>
+                    </div>
+                  </div>
+                  <Badge className="mt-2 bg-green-500 hover:bg-green-600 text-white">
+                    +25 Points this month
+                  </Badge>
+                </div>
+                <div>
+                  <h4 className="text-sm font-semibold mb-2">Credit Score Trend</h4>
+                  <ResponsiveContainer width="100%" height={150}>
+                    <LineChart data={creditScoreTrendData}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="month" />
+                      <YAxis domain={[680, 730]} />
+                      <Tooltip />
+                      <Line type="monotone" dataKey="score" stroke="#10B981" strokeWidth={2} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Your very good score unlocks our best loan products and interest rates.
+                </p>
+              </CardContent>
+            </Card>
+
+            {/* AI Insight */}
+            <Card className="border-purple-200 bg-purple-50">
+              <CardContent className="p-4">
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 bg-purple-500 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <Brain className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold mb-2">AI Insight</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Based on your payment history, you're on track to improve your credit score by +30 points in the next 6 months! Make timely payments to unlock better rates.
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Business Loan Promotion */}
+            <Card className="bg-primary text-primary-foreground">
+              <CardContent className="p-6">
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <Handshake className="w-5 h-5" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="font-semibold mb-2">Unlock a Business Loan!</h3>
+                    <p className="text-sm opacity-90 mb-4">
+                      Expand your business with our new SME loans. Get up to ₦10,000,000 with flexible repayment options.
+                    </p>
+                    <Button 
+                      variant="secondary" 
+                      size="sm" 
+                      className="w-full"
+                      onClick={() => navigate("/customer/apply-loan")}
+                    >
+                      Learn More
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </div>
+    </CustomerLayout>
+  );
+};
+
+export default CustomerDashboard;
+
