@@ -12,11 +12,13 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { LogOut, User, Settings } from "lucide-react";
+import { getInitials } from "@/lib/utils";
 
 const Navbar = () => {
   const navigate = useNavigate();
   const { isAuthenticated, user, logout, isLoading, userType } = useAuth();
   const { toast } = useToast();
+  const userInitials = getInitials(user?.fullName, "U");
 
   const handleLogout = async () => {
     try {
@@ -90,7 +92,7 @@ const Navbar = () => {
                   <DropdownMenuTrigger asChild>
                     <Avatar className="w-8 h-8 cursor-pointer hover:opacity-80 transition-opacity">
                       <AvatarFallback className="bg-primary text-primary-foreground">
-                        {user?.fullName?.split(' ').map(n => n[0]).join('') || 'U'}
+                        {userInitials}
                       </AvatarFallback>
                     </Avatar>
                   </DropdownMenuTrigger>

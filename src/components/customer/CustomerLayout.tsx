@@ -14,7 +14,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Bell, LayoutDashboard, FileText, History, User, HelpCircle, LogOut, Settings } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, getInitials } from "@/lib/utils";
 
 interface CustomerLayoutProps {
   children: ReactNode;
@@ -26,6 +26,7 @@ export function CustomerLayout({ children }: CustomerLayoutProps) {
   const { user, logout, isLoading } = useAuth();
   const { toast } = useToast();
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
+  const userInitials = getInitials(user?.fullName, "CL");
 
   const isActive = (path: string) => location.pathname === path;
 
@@ -104,7 +105,7 @@ export function CustomerLayout({ children }: CustomerLayoutProps) {
               <DropdownMenuTrigger asChild>
                 <Avatar className="w-8 h-8 cursor-pointer">
                   <AvatarFallback className="bg-primary text-primary-foreground">
-                    {user?.fullName?.split(' ').map(n => n[0]).join('') || 'AJ'}
+                    {userInitials}
                   </AvatarFallback>
                 </Avatar>
               </DropdownMenuTrigger>

@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { CustomerLayout } from "@/components/customer/CustomerLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,6 +8,7 @@ import { Progress } from "@/components/ui/progress";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart, PieChart, Pie, Cell } from "recharts";
 import { DollarSign, TrendingUp, Calendar, Lightbulb, X, Brain, Handshake } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 
 const paymentTrendData = [
   { month: "Jan", amount: 0 },
@@ -44,13 +46,22 @@ const recentTransactions = [
 
 const CustomerDashboard = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const userFirstName = useMemo(() => {
+    if (!user?.fullName) {
+      return "User";
+    }
+
+    const parts = user.fullName.trim().split(/\s+/);
+    return parts[0] || "User";
+  }, [user?.fullName]);
   
   return (
     <CustomerLayout>
       <div className="space-y-6">
         {/* Welcome Section */}
         <div>
-          <h1 className="text-3xl font-bold mb-2">Welcome back, Adewale!</h1>
+          <h1 className="text-3xl font-bold mb-2">Welcome back, {userFirstName}!</h1>
           <p className="text-muted-foreground">Here's what's happening with your loans today.</p>
         </div>
 

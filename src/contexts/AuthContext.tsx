@@ -10,7 +10,8 @@ export interface User {
   userId: string;
   email: string;
   fullName: string;
-  phone?: string;
+  phoneNumber?: string;
+  address?: string;
   userType: 'customer' | 'admin';
   status: string;
   emailVerified?: boolean;
@@ -24,10 +25,12 @@ interface AuthContextType {
   userType: 'customer' | 'admin' | null;
   error: string | null;
   login: (emailOrUsername: string, password: string, userType: 'customer' | 'admin') => Promise<void>;
-  register: (fullName: string, email: string, phone: string, password: string) => Promise<void>;
+  register: (fullName: string, email: string, phone: string, password: string, address?: string) => Promise<void>;
   logout: () => Promise<void>;
   clearError: () => void;
   refreshUserData: () => Promise<void>;
+  changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
+  updateProfile: (address?: string, phoneNumber?: string, fullName?: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -89,7 +92,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  const register = async (fullName: string, email: string, phone: string, password: string) => {
+  const register = async (fullName: string, email: string, phone: string, password: string, address?: string) => {
     setIsLoading(true);
     setError(null);
 
@@ -98,6 +101,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         fullName,
         email,
         phone,
+        address,
         password,
       });
 
@@ -140,20 +144,93 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       if (isAuthenticated()) {
         const response = await authApi.getCurrentUser();
         if (response.success && response.data) {
-          setUser({
+          // Convert backend string values to lowercase for consistency
+          const userType = response.data.userType?.toLowerCase() as 'customer' | 'admin';
+          const status = response.data.status?.toLowerCase() || 'active';
+
+          const userData = {
             userId: response.data.userId,
             email: response.data.email,
             fullName: response.data.fullName,
-            phone: response.data.phone,
-            userType: response.data.userType,
-            status: response.data.status,
+            phoneNumber: response.data.phoneNumber,
+            address: response.data.address,
+            userType: userType,
+            status: status,
             emailVerified: response.data.emailVerified,
             createdAt: response.data.createdAt,
-          });
+          };
+
+          setUser(userData);
+          
+          // Also update localStorage
+          localStorage.setItem('user', JSON.stringify(userData));
         }
       }
     } catch (err) {
       console.error('Failed to refresh user data:', err);
+    }
+  };
+
+  const changePassword = async (currentPassword: string, newPassword: string) => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const response = await authApi.changePassword(currentPassword, newPassword);
+
+      if (!response.success) {
+        setError(response.message || 'Password change failed');
+        throw new Error(response.message);
+      }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Password change failed';
+      setError(errorMessage);
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const updateProfile = async (address?: string, phoneNumber?: string, fullName?: string) => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const response = await authApi.updateProfile({
+        address,
+        phoneNumber,
+        fullName,
+      });
+
+      if (!response.success || !response.data) {
+        setError(response.message || 'Profile update failed');
+        throw new Error(response.message);
+      }
+
+      // Update user state with new data
+      const userType = response.data.userType?.toLowerCase() as 'customer' | 'admin';
+      const status = response.data.status?.toLowerCase() || 'active';
+
+      const userData: User = {
+        userId: response.data.userId,
+        email: response.data.email,
+        fullName: response.data.fullName,
+        phoneNumber: response.data.phoneNumber,
+        address: response.data.address,
+        userType: userType,
+        status: status,
+        emailVerified: response.data.emailVerified,
+        createdAt: response.data.createdAt,
+      };
+
+      setUser(userData);
+      localStorage.setItem('user', JSON.stringify(userData));
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Profile update failed';
+      setError(errorMessage);
+      throw err;
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -170,6 +247,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     logout,
     clearError,
     refreshUserData,
+    changePassword,
+    updateProfile,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

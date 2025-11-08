@@ -28,6 +28,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { getInitials } from "@/lib/utils";
 
 const menuItems = [
   { title: "Dashboard", icon: LayoutDashboard, url: "/admin/dashboard" },
@@ -48,6 +49,7 @@ export function AdminSidebar() {
   const { state } = useSidebar();
   const { user, logout, isLoading } = useAuth();
   const { toast } = useToast();
+  const userInitials = getInitials(user?.fullName, "AN");
 
   const isActive = (url: string) => location.pathname === url;
 
@@ -109,7 +111,7 @@ export function AdminSidebar() {
         <div className="flex items-center gap-3 mb-4">
           <Avatar className="w-10 h-10 flex-shrink-0">
             <AvatarFallback className="bg-primary text-primary-foreground">
-              {user?.fullName?.split(' ').map(n => n[0]).join('') || 'AN'}
+              {userInitials}
             </AvatarFallback>
           </Avatar>
           {state === "expanded" && (

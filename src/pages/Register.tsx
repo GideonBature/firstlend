@@ -16,6 +16,7 @@ const Register = () => {
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
+  const [address, setAddress] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
@@ -67,7 +68,7 @@ const Register = () => {
       }
 
       // Attempt registration
-      await register(fullName, email, phone, password);
+      await register(fullName, email, phone, password, address);
 
       // Show success toast
       toast({
@@ -151,6 +152,16 @@ const Register = () => {
                     placeholder="+234 800 000 0000"
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="address">Address</Label>
+                  <Input
+                    id="address"
+                    placeholder="e.g., 123 Main Street, Lagos"
+                    value={address}
+                    onChange={(e) => setAddress(e.target.value)}
                   />
                 </div>
 

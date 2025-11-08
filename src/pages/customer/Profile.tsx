@@ -20,10 +20,125 @@ import {
   Mail,
   FileBadge,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
+import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/hooks/use-toast";
+import { getInitials } from "@/lib/utils";
 
 const Profile = () => {
+  const { user, refreshUserData, changePassword, updateProfile, isLoading, error } = useAuth();
+  const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("personal");
+  const [passwordLoading, setPasswordLoading] = useState(false);
+  const [isEditingAddress, setIsEditingAddress] = useState(false);
+  const [editedAddress, setEditedAddress] = useState(user?.address || "");
+  const [addressLoading, setAddressLoading] = useState(false);
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: "",
+  });
+
+  // Fetch user data on component mount
+  useEffect(() => {
+    refreshUserData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Update edited address when user data changes
+  useEffect(() => {
+    setEditedAddress(user?.address || "");
+  }, [user?.address]);
+
+  const handlePasswordChange = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    // Validate form
+    if (!passwordForm.currentPassword || !passwordForm.newPassword || !passwordForm.confirmPassword) {
+      toast({
+        title: "Error",
+        description: "All password fields are required",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      toast({
+        title: "Error",
+        description: "New passwords do not match",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (passwordForm.newPassword.length < 8) {
+      toast({
+        title: "Error",
+        description: "New password must be at least 8 characters",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setPasswordLoading(true);
+    try {
+      await changePassword(passwordForm.currentPassword, passwordForm.newPassword);
+      toast({
+        title: "Success",
+        description: "Password changed successfully",
+      });
+      setPasswordForm({
+        currentPassword: "",
+        newPassword: "",
+        confirmPassword: "",
+      });
+    } catch (err) {
+      toast({
+        title: "Error",
+        description: err instanceof Error ? err.message : "Failed to change password",
+        variant: "destructive",
+      });
+    } finally {
+      setPasswordLoading(false);
+    }
+  };
+
+  const handleSaveAddress = async () => {
+    if (!editedAddress.trim()) {
+      toast({
+        title: "Error",
+        description: "Address cannot be empty",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setAddressLoading(true);
+    try {
+      await updateProfile(editedAddress);
+      toast({
+        title: "Success",
+        description: "Address updated successfully",
+      });
+      setIsEditingAddress(false);
+    } catch (err) {
+      toast({
+        title: "Error",
+        description: err instanceof Error ? err.message : "Failed to update address",
+        variant: "destructive",
+      });
+    } finally {
+      setAddressLoading(false);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditedAddress(user?.address || "");
+    setIsEditingAddress(false);
+  };
+
+  const userInitials = useMemo(() => getInitials(user?.fullName, "AJ"), [user?.fullName]);
 
   const kycRequirements = useMemo(
     () => [
@@ -65,7 +180,7 @@ const Profile = () => {
                 <div className="relative">
                   <Avatar className="w-20 h-20">
                     <AvatarFallback className="bg-primary text-primary-foreground text-2xl">
-                      AJ
+                      {userInitials}
                     </AvatarFallback>
                   </Avatar>
                   <Button
@@ -77,19 +192,19 @@ const Profile = () => {
                   </Button>
                 </div>
                 <div>
-                  <h2 className="text-2xl font-bold">Adewale Johnson</h2>
+                  <h2 className="text-2xl font-bold">{user?.fullName || "User"}</h2>
                   <div className="flex flex-col gap-1 mt-2 text-sm text-muted-foreground">
                     <div className="flex items-center gap-2">
                       <Mail className="w-4 h-4" />
-                      <span>adewale.johnson@email.com</span>
+                      <span>{user?.email || "email@example.com"}</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <Phone className="w-4 h-4" />
-                      <span>+234 802 345 6789</span>
+                      <span>{user?.phoneNumber || "Not provided"}</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <MapPin className="w-4 h-4" />
-                      <span>Lagos, Nigeria</span>
+                      <span>{user?.address || "Not provided"}</span>
                     </div>
                   </div>
                 </div>
@@ -168,42 +283,69 @@ const Profile = () => {
                     <Label htmlFor="fullName">Full Name</Label>
                     <div className="relative">
                       <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-                      <Input id="fullName" defaultValue="Adewale Johnson" className="pl-10" />
+                      <Input id="fullName" value={user?.fullName || ""} readOnly className="pl-10 bg-muted" />
                     </div>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="email">Email Address</Label>
                     <div className="relative">
                       <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-                      <Input id="email" defaultValue="adewale.johnson@email.com" className="pl-10" />
+                      <Input id="email" value={user?.email || ""} readOnly className="pl-10 bg-muted" />
                     </div>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="phone">Phone Number</Label>
                     <div className="relative">
                       <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-                      <Input id="phone" defaultValue="+234 802 345 6789" className="pl-10" />
+                      <Input id="phone" value={user?.phoneNumber || "Not provided"} readOnly className="pl-10 bg-muted" />
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="dob">Date of Birth</Label>
-                    <Input id="dob" type="date" defaultValue="1990-05-15" />
+                    <Label htmlFor="userType">Account Type</Label>
+                    <Input id="userType" value={user?.userType?.charAt(0).toUpperCase() + user?.userType?.slice(1) || ""} readOnly className="bg-muted" />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="occupation">Occupation</Label>
-                    <Input id="occupation" defaultValue="Software Engineer" />
+                    <Label htmlFor="status">Status</Label>
+                    <Input id="status" value={user?.status?.charAt(0).toUpperCase() + user?.status?.slice(1) || ""} readOnly className="bg-muted" />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="address">Address</Label>
                     <div className="relative">
                       <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-                      <Input id="address" defaultValue="15 Marina Street, Lagos Island, Lagos" className="pl-10" />
+                      <Input 
+                        id="address" 
+                        value={isEditingAddress ? editedAddress : (user?.address || "Not provided")}
+                        onChange={(e) => setEditedAddress(e.target.value)}
+                        readOnly={!isEditingAddress}
+                        className={`pl-10 ${isEditingAddress ? "" : "bg-muted"}`}
+                      />
                     </div>
                   </div>
                 </div>
                 <div className="flex justify-end gap-4">
-                  <Button variant="outline">Cancel</Button>
-                  <Button className="bg-primary text-primary-foreground">Save Changes</Button>
+                  {isEditingAddress ? (
+                    <>
+                      <Button variant="outline" onClick={handleCancelEdit} disabled={addressLoading}>
+                        Cancel
+                      </Button>
+                      <Button 
+                        className="bg-primary text-primary-foreground" 
+                        onClick={handleSaveAddress}
+                        disabled={addressLoading}
+                      >
+                        {addressLoading ? "Saving..." : "Save Address"}
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <Button 
+                        className="bg-primary text-primary-foreground"
+                        onClick={() => setIsEditingAddress(true)}
+                      >
+                        Edit Address
+                      </Button>
+                    </>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -216,27 +358,78 @@ const Profile = () => {
                 <p className="text-sm text-muted-foreground">Manage your account security and password.</p>
               </CardHeader>
               <CardContent className="space-y-6">
-                <div className="space-y-4">
-                  <h3 className="font-semibold">Change Password</h3>
+                {error && (
+                  <Alert variant="destructive">
+                    <AlertTitle>Error</AlertTitle>
+                    <AlertDescription>{error}</AlertDescription>
+                  </Alert>
+                )}
+                <form onSubmit={handlePasswordChange}>
                   <div className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="currentPassword">Current Password</Label>
-                      <Input id="currentPassword" type="password" />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="newPassword">New Password</Label>
-                      <Input id="newPassword" type="password" />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="confirmPassword">Confirm New Password</Label>
-                      <Input id="confirmPassword" type="password" />
+                    <h3 className="font-semibold">Change Password</h3>
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="currentPassword">Current Password</Label>
+                        <Input
+                          id="currentPassword"
+                          type="password"
+                          value={passwordForm.currentPassword}
+                          onChange={(e) =>
+                            setPasswordForm({ ...passwordForm, currentPassword: e.target.value })
+                          }
+                          disabled={passwordLoading}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="newPassword">New Password</Label>
+                        <Input
+                          id="newPassword"
+                          type="password"
+                          value={passwordForm.newPassword}
+                          onChange={(e) =>
+                            setPasswordForm({ ...passwordForm, newPassword: e.target.value })
+                          }
+                          disabled={passwordLoading}
+                          placeholder="Minimum 8 characters"
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          Password must be at least 8 characters long with uppercase, lowercase, number, and special character.
+                        </p>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="confirmPassword">Confirm New Password</Label>
+                        <Input
+                          id="confirmPassword"
+                          type="password"
+                          value={passwordForm.confirmPassword}
+                          onChange={(e) =>
+                            setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })
+                          }
+                          disabled={passwordLoading}
+                        />
+                      </div>
                     </div>
                   </div>
-                </div>
-                <div className="flex justify-end gap-4">
-                  <Button variant="outline">Cancel</Button>
-                  <Button>Update Password</Button>
-                </div>
+                  <div className="flex justify-end gap-4 mt-6">
+                    <Button
+                      variant="outline"
+                      type="button"
+                      onClick={() =>
+                        setPasswordForm({
+                          currentPassword: "",
+                          newPassword: "",
+                          confirmPassword: "",
+                        })
+                      }
+                      disabled={passwordLoading}
+                    >
+                      Cancel
+                    </Button>
+                    <Button type="submit" disabled={passwordLoading}>
+                      {passwordLoading ? "Updating..." : "Update Password"}
+                    </Button>
+                  </div>
+                </form>
               </CardContent>
             </Card>
           </TabsContent>

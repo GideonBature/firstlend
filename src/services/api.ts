@@ -38,6 +38,7 @@ interface RegisterRequest {
   fullName: string;
   email: string;
   phone: string;
+  address?: string;
   password: string;
 }
 
@@ -52,11 +53,18 @@ interface CurrentUserResponse {
   userId: string;
   email: string;
   fullName: string;
-  phone: string;
-  userType: 'customer' | 'admin';
-  status: string;
-  emailVerified: boolean;
-  createdAt: string;
+  phoneNumber?: string;
+  address?: string;
+  userType: string; // "Customer" or "Admin" from backend
+  status: string; // "Active", "Inactive", etc.
+  emailVerified?: boolean;
+  createdAt?: string;
+}
+
+interface UpdateProfileRequest {
+  address?: string;
+  phoneNumber?: string;
+  fullName?: string;
 }
 
 /**
@@ -102,10 +110,14 @@ async function fetchApi<T>(
       clearAuthData();
     }
 
+    // Check if the response is already wrapped (has success/data properties)
+    // or if it's a direct data response
+    const isWrapped = typeof data === 'object' && data !== null && 'data' in data;
+
     return {
       success: response.ok,
       message: data.message || (response.ok ? 'Success' : 'Error'),
-      data: data.data,
+      data: isWrapped ? data.data : (response.ok ? data : undefined),
       code: data.code,
       errors: data.errors,
     };
@@ -222,6 +234,26 @@ export const authApi = {
       method: 'POST',
       body: JSON.stringify({ token, newPassword }),
     });
+  },
+
+  /**
+   * Change password for authenticated user
+   */
+  async changePassword(currentPassword: string, newPassword: string): Promise<ApiResponse<null>> {
+    return fetchApi<null>('/auth/change-password', {
+      method: 'POST',
+      body: JSON.stringify({ currentPassword, newPassword }),
+    }, true);
+  },
+
+  /**
+   * Update user profile
+   */
+  async updateProfile(payload: UpdateProfileRequest): Promise<ApiResponse<CurrentUserResponse>> {
+    return fetchApi<CurrentUserResponse>('/auth/update-profile', {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    }, true);
   },
 };
 
