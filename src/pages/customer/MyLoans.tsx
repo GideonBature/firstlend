@@ -328,12 +328,9 @@ const MyLoans = () => {
         <MakePaymentModal
           open={paymentModalOpen}
           onOpenChange={setPaymentModalOpen}
-          loanAccount={selectedLoan ? `LN-${selectedLoan.id.substring(0, 8)}` : undefined}
-          outstandingBalance={
-            selectedLoan
-              ? `₦${selectedLoan.outstanding.toLocaleString("en-NG", { maximumFractionDigits: 2 })}`
-              : undefined
-          }
+          loanId={selectedLoan?.id || ""}
+          loanAccount={selectedLoan ? `LN-${selectedLoan.id.substring(0, 8)}` : ""}
+          outstandingBalance={selectedLoan?.outstanding || 0}
           onSuccess={handlePaymentSuccess}
         />
       </div>

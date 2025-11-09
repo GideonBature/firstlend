@@ -24,6 +24,8 @@ import CustomerHistory from "./pages/customer/PaymentHistory";
 import CustomerProfile from "./pages/customer/Profile";
 import CustomerSupport from "./pages/customer/Support";
 import ApplyLoan from "./pages/customer/ApplyLoan";
+import PaymentSuccess from "./pages/customer/PaymentSuccess";
+import PaymentFailed from "./pages/customer/PaymentFailed";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -51,10 +53,14 @@ const App = () => (
             <Route path="/admin/settings" element={<ProtectedRoute allowedUserTypes={['admin']}><AdminSettings /></ProtectedRoute>} />
             <Route path="/customer/dashboard" element={<ProtectedRoute allowedUserTypes={['customer']}><CustomerDashboard /></ProtectedRoute>} />
             <Route path="/customer/loans" element={<ProtectedRoute allowedUserTypes={['customer']}><CustomerLoans /></ProtectedRoute>} />
+            <Route path="/customer/my-loans" element={<ProtectedRoute allowedUserTypes={['customer']}><CustomerLoans /></ProtectedRoute>} />
             <Route path="/customer/history" element={<ProtectedRoute allowedUserTypes={['customer']}><CustomerHistory /></ProtectedRoute>} />
+            <Route path="/customer/payment-history" element={<ProtectedRoute allowedUserTypes={['customer']}><CustomerHistory /></ProtectedRoute>} />
             <Route path="/customer/profile" element={<ProtectedRoute allowedUserTypes={['customer']}><CustomerProfile /></ProtectedRoute>} />
             <Route path="/customer/support" element={<ProtectedRoute allowedUserTypes={['customer']}><CustomerSupport /></ProtectedRoute>} />
             <Route path="/customer/apply-loan" element={<ProtectedRoute allowedUserTypes={['customer']}><ApplyLoan /></ProtectedRoute>} />
+            <Route path="/payment/success" element={<ProtectedRoute allowedUserTypes={['customer']}><PaymentSuccess /></ProtectedRoute>} />
+            <Route path="/payment/failed" element={<ProtectedRoute allowedUserTypes={['customer']}><PaymentFailed /></ProtectedRoute>} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

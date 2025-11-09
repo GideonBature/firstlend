@@ -3,88 +3,141 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
-import { Calendar } from "lucide-react";
-
-// Format date for input field
-const formatDate = (date: Date) => {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-};
+import { AlertCircle, Loader2, CreditCard } from "lucide-react";
+import { paymentApi } from "@/services/api";
+import { useToast } from "@/hooks/use-toast";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface MakePaymentModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  loanId: string;
   loanAccount?: string;
-  outstandingBalance?: string;
+  outstandingBalance: number;
   onSuccess?: () => void;
 }
 
 export function MakePaymentModal({
   open,
   onOpenChange,
-  loanAccount = "LN-FB0012345678",
-  outstandingBalance = "₦1,500,000.00",
+  loanId,
+  loanAccount = "",
+  outstandingBalance = 0,
   onSuccess,
 }: MakePaymentModalProps) {
+  const { toast } = useToast();
   const [paymentAmount, setPaymentAmount] = useState("");
-  const [paymentDate, setPaymentDate] = useState(formatDate(new Date()));
-  const [simulatePayment, setSimulatePayment] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleConfirmPayment = () => {
-    if (!paymentAmount || parseFloat(paymentAmount.replace(/[₦,]/g, "")) <= 0) {
+  const handleConfirmPayment = async () => {
+    const amount = parseFloat(paymentAmount.replace(/[₦,]/g, ""));
+    
+    // Validation
+    if (!amount || amount <= 0) {
+      setError("Please enter a valid amount");
+      return;
+    }
+
+    if (amount < 1000) {
+      setError("Minimum payment amount is ₦1,000");
+      return;
+    }
+
+    if (amount > outstandingBalance) {
+      setError(`Payment amount cannot exceed outstanding balance of ₦${outstandingBalance.toLocaleString()}`);
       return;
     }
 
     setIsProcessing(true);
-    
-    // Simulate API call
-    setTimeout(() => {
-      setIsProcessing(false);
-      onOpenChange(false);
-      if (onSuccess) {
-        onSuccess();
+    setError(null);
+
+    try {
+      // Initialize payment with Paystack
+      const response = await paymentApi.initializePayment({
+        loanId,
+        amount,
+      });
+
+      if (response.success && response.data) {
+        // Redirect to Paystack checkout page
+        window.location.href = response.data.authorizationUrl;
+      } else {
+        setError(response.message || "Failed to initialize payment");
+        toast({
+          title: "Payment Failed",
+          description: response.message || "Failed to initialize payment",
+          variant: "destructive",
+        });
       }
-      // Reset form
-      setPaymentAmount("");
-      setPaymentDate(formatDate(new Date()));
-    }, 1500);
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : "Failed to initialize payment";
+      setError(errorMsg);
+      console.error("Payment initialization error:", err);
+      toast({
+        title: "Payment Failed",
+        description: errorMsg,
+        variant: "destructive",
+      });
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value.replace(/[^0-9.]/g, "");
     setPaymentAmount(value);
+    setError(null);
   };
 
   const formatAmount = (value: string) => {
     if (!value) return "";
     const numValue = parseFloat(value);
     if (isNaN(numValue)) return value;
-    return `₦ ${numValue.toLocaleString("en-NG", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    return `₦${numValue.toLocaleString("en-NG", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  };
+
+  const handleQuickAmount = (percentage: number) => {
+    const amount = (outstandingBalance * percentage) / 100;
+    setPaymentAmount(amount.toString());
+    setError(null);
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Make a Repayment</DialogTitle>
+          <DialogTitle className="flex items-center gap-2">
+            <CreditCard className="w-5 h-5" />
+            Make a Payment
+          </DialogTitle>
           <DialogDescription>
-            This is for local simulation and does not process a real payment.
+            Pay your loan using Paystack secure payment gateway
           </DialogDescription>
         </DialogHeader>
         
         <div className="space-y-4 py-4">
-          <div className="space-y-2">
-            <Label>Loan Account</Label>
-            <Input value={loanAccount} disabled className="bg-muted" />
-          </div>
+          {error && (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+
+          {loanAccount && (
+            <div className="space-y-2">
+              <Label>Loan Account</Label>
+              <Input value={loanAccount} disabled className="bg-muted" />
+            </div>
+          )}
 
           <div className="space-y-2">
             <Label>Outstanding Balance</Label>
-            <Input value={outstandingBalance} disabled className="bg-muted" />
+            <Input 
+              value={`₦${outstandingBalance.toLocaleString("en-NG", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} 
+              disabled 
+              className="bg-muted font-semibold" 
+            />
           </div>
 
           <div className="space-y-2">
@@ -95,39 +148,70 @@ export function MakePaymentModal({
               <Input
                 id="paymentAmount"
                 type="text"
-                placeholder="₦ 0.00"
+                placeholder="₦0.00"
                 value={formatAmount(paymentAmount)}
                 onChange={handleAmountChange}
-                className="pl-2"
+                className="pl-2 text-lg font-semibold"
+                disabled={isProcessing}
               />
             </div>
+            <p className="text-xs text-muted-foreground">Minimum: ₦1,000</p>
           </div>
 
+          {/* Quick amount buttons */}
           <div className="space-y-2">
-            <Label htmlFor="paymentDate">
-              Payment Date <span className="text-red-500">*</span>
-            </Label>
-            <div className="relative">
-              <Input
-                id="paymentDate"
-                type="date"
-                value={paymentDate}
-                onChange={(e) => setPaymentDate(e.target.value)}
-                className="pr-10"
-              />
-              <Calendar className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4 pointer-events-none" />
+            <Label className="text-xs text-muted-foreground">Quick Select</Label>
+            <div className="grid grid-cols-4 gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => handleQuickAmount(25)}
+                disabled={isProcessing}
+                className="text-xs"
+              >
+                25%
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => handleQuickAmount(50)}
+                disabled={isProcessing}
+                className="text-xs"
+              >
+                50%
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => handleQuickAmount(75)}
+                disabled={isProcessing}
+                className="text-xs"
+              >
+                75%
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => handleQuickAmount(100)}
+                disabled={isProcessing}
+                className="text-xs"
+              >
+                100%
+              </Button>
             </div>
           </div>
 
-          <div className="flex items-center justify-between space-x-2 py-2">
-            <Label htmlFor="simulate-payment" className="text-sm font-normal cursor-pointer">
-              Simulate Payment
-            </Label>
-            <Switch
-              id="simulate-payment"
-              checked={simulatePayment}
-              onCheckedChange={setSimulatePayment}
-            />
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-xs text-blue-800">
+            <p className="font-semibold mb-1">Payment Information:</p>
+            <ul className="list-disc list-inside space-y-1">
+              <li>You will be redirected to Paystack for secure payment</li>
+              <li>Test card: 4084084084084081 (CVV: 408, PIN: 0000, OTP: 123456)</li>
+              <li>Your loan balance will be updated after successful payment</li>
+            </ul>
           </div>
         </div>
 
@@ -144,7 +228,17 @@ export function MakePaymentModal({
             disabled={isProcessing || !paymentAmount || parseFloat(paymentAmount.replace(/[₦,]/g, "")) <= 0}
             className="bg-primary text-primary-foreground"
           >
-            {isProcessing ? "Processing..." : "Confirm Payment"}
+            {isProcessing ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Processing...
+              </>
+            ) : (
+              <>
+                <CreditCard className="w-4 h-4 mr-2" />
+                Pay with Paystack
+              </>
+            )}
           </Button>
         </div>
       </DialogContent>

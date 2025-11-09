@@ -431,6 +431,86 @@ export const adminApi = {
 };
 
 /**
+ * Payment API Types
+ */
+interface InitiatePaymentRequest {
+  loanId: string;
+  amount: number;
+}
+
+interface InitiatePaymentResponse {
+  success: boolean;
+  message: string;
+  authorizationUrl: string;
+  accessCode: string;
+  reference: string;
+}
+
+interface VerifyPaymentResponse {
+  success: boolean;
+  message: string;
+  amount: number;
+  status: string;
+  reference: string;
+  paidAt: string;
+  channel: string;
+}
+
+export interface PaymentHistoryRecord {
+  id: string;
+  transactionId: string;
+  loanId: string;
+  loanReference: string;
+  amount: number;
+  principal: number;
+  interest: number;
+  method: string;
+  status: string;
+  createdAt: string;
+}
+
+/**
+ * Payment API calls
+ */
+export const paymentApi = {
+  /**
+   * Initialize a payment with Paystack
+   */
+  async initializePayment(payload: InitiatePaymentRequest): Promise<ApiResponse<InitiatePaymentResponse>> {
+    return fetchApi<InitiatePaymentResponse>('/payments/initialize', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }, true);
+  },
+
+  /**
+   * Verify a payment
+   */
+  async verifyPayment(reference: string): Promise<ApiResponse<VerifyPaymentResponse>> {
+    return fetchApi<VerifyPaymentResponse>(`/payments/verify/${reference}`, {
+      method: 'GET',
+    }, true);
+  },
+
+  /**
+   * Get payment history
+   */
+  async getPaymentHistory(params?: { page?: number; pageSize?: number; loanId?: string }): Promise<ApiResponse<PaymentHistoryRecord[]>> {
+    const queryParams = new URLSearchParams();
+    if (params?.page) queryParams.append('page', String(params.page));
+    if (params?.pageSize) queryParams.append('pageSize', String(params.pageSize));
+    if (params?.loanId) queryParams.append('loanId', params.loanId);
+    
+    const queryString = queryParams.toString();
+    const endpoint = `/payment-history${queryString ? `?${queryString}` : ''}`;
+    
+    return fetchApi<PaymentHistoryRecord[]>(endpoint, {
+      method: 'GET',
+    }, true);
+  },
+};
+
+/**
  * Helper functions
  */
 
@@ -475,4 +555,14 @@ async function refreshAccessToken(): Promise<boolean> {
 export default authApi;
 
 // Export types for use in components
-export type { LoanType, LoanResponse, CreateLoanRequest, MyLoansResponse, AdminLoansParams, AdminLoansResponse };
+export type { 
+  LoanType, 
+  LoanResponse, 
+  CreateLoanRequest, 
+  MyLoansResponse, 
+  AdminLoansParams, 
+  AdminLoansResponse,
+  InitiatePaymentRequest,
+  InitiatePaymentResponse,
+  VerifyPaymentResponse
+};
