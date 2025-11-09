@@ -119,6 +119,7 @@ interface LoanResponse {
   nextPaymentDate: string;
   createdAt: string;
   dueAt: string;
+  paymentProgress: number;
 }
 
 /**

@@ -52,8 +52,17 @@ const getStatusBadge = (status: string) => {
 
 const getProgressValue = (loan: LoanResponse) => {
   if (loan.status.toLowerCase() === "paid") return 100;
-  if (!loan.principal || !loan.outstandingBalance) return 0;
-  return Math.round(((loan.principal - loan.outstandingBalance) / loan.principal) * 100);
+  
+  // Calculate based on amount paid (principal - outstanding)
+  if (loan.principal && loan.outstandingBalance >= 0) {
+    const amountPaid = loan.principal - loan.outstandingBalance;
+    if (amountPaid > 0) {
+      const progress = (amountPaid / loan.principal) * 100;
+      return Math.max(0, Math.min(100, Math.round(progress)));
+    }
+  }
+  
+  return 0;
 };
 
 const getProgressIndicatorClass = (status: string) => {

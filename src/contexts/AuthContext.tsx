@@ -51,7 +51,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         if (isAuthenticated()) {
           const storedUser = getStoredUser();
           if (storedUser) {
-            setUser(storedUser);
+            // Ensure userType is lowercase for consistency
+            const normalizedUser = {
+              ...storedUser,
+              userType: storedUser.userType?.toLowerCase() as 'customer' | 'admin',
+              status: storedUser.status?.toLowerCase() || 'active',
+            };
+            setUser(normalizedUser);
           }
         }
       } catch (err) {

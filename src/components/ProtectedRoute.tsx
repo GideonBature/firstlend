@@ -39,7 +39,9 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, allowe
   // If user type is not allowed, redirect to appropriate dashboard
   if (userType && !allowedUserTypes.includes(userType)) {
     console.warn('ProtectedRoute: User type not allowed', { userType, allowedUserTypes });
-    if (userType === 'admin') {
+    // Normalize to lowercase for comparison
+    const normalizedUserType = userType.toLowerCase();
+    if (normalizedUserType === 'admin') {
       return <Navigate to="/admin/dashboard" replace />;
     } else {
       return <Navigate to="/customer/dashboard" replace />;
