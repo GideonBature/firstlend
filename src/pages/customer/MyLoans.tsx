@@ -14,7 +14,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import type { LoanResponse } from "@/services/api";
 import { useNavigate } from "react-router-dom";
 
-const statusFilters = ["All", "pending", "active", "paid", "overdue", "rejected"] as const;
+const statusFilters = ["All", "pending", "approved", "active", "paid", "overdue", "rejected"] as const;
 
 type StatusFilter = (typeof statusFilters)[number];
 
@@ -278,7 +278,7 @@ const MyLoans = () => {
                               </div>
 
                               <div className="flex flex-wrap items-center justify-center gap-3">
-                                {loan.status.toLowerCase() === "active" || loan.status.toLowerCase() === "pending" ? (
+                                {loan.status.toLowerCase() === "active" ? (
                                   <>
                                     <Button
                                       className="min-w-[150px]"
