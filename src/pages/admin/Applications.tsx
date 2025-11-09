@@ -1,10 +1,12 @@
+import { useState, useEffect } from "react";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Search, Plus } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Search, Plus, AlertCircle, Loader2 } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -12,15 +14,216 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-
-const applications = [
-  { id: "FB-836490", name: "Adekunle Adebayo", amount: "₦5,000,000", submitted: "2023-10-26", status: "Pending" },
-  { id: "FB-836490", name: "Chidinma Okoro", amount: "₦750,000", submitted: "2023-10-26", status: "Pending" },
-  { id: "FB-836488", name: "Musa Ibrahim", amount: "₦12,300,000", submitted: "2023-10-25", status: "Approved" },
-  { id: "FB-836487", name: "Folake Silva", amount: "₦45,000,000", submitted: "2023-10-25", status: "Rejected" },
-];
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { adminApi, LoanResponse } from "@/services/api";
+import { useToast } from "@/hooks/use-toast";
 
 const AdminApplications = () => {
+  const [applications, setApplications] = useState<LoanResponse[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [sortBy, setSortBy] = useState("date");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const [pageSize] = useState(10);
+  const [selectedApplications, setSelectedApplications] = useState<Set<string>>(new Set());
+  const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
+  const [rejectingLoanId, setRejectingLoanId] = useState<string | null>(null);
+  const [rejectReason, setRejectReason] = useState("");
+  const [processingLoanId, setProcessingLoanId] = useState<string | null>(null);
+  const { toast } = useToast();
+
+  const totalPages = Math.ceil(totalCount / pageSize);
+
+  // Fetch applications from backend
+  const fetchApplications = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const response = await adminApi.getLoans({
+        status: statusFilter !== "all" ? statusFilter : undefined,
+        search: searchTerm || undefined,
+        sortBy: sortBy,
+        sortOrder: "desc",
+        page: currentPage,
+        pageSize: pageSize,
+      });
+
+      if (response.success) {
+        setApplications(response.data || []);
+        setTotalCount(response.totalCount || 0);
+      } else {
+        setError(response.message || "Failed to load applications");
+      }
+    } catch (err) {
+      console.error("Error fetching applications:", err);
+      setError("Failed to load applications. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Fetch applications on mount and when filters change
+  useEffect(() => {
+    fetchApplications();
+  }, [statusFilter, sortBy, currentPage]);
+
+  // Handle search with debounce
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (currentPage === 1) {
+        fetchApplications();
+      } else {
+        setCurrentPage(1);
+      }
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  const handleApprove = async (loanId: string) => {
+    try {
+      setProcessingLoanId(loanId);
+      const response = await adminApi.approveLoan(loanId);
+      
+      if (response.success) {
+        toast({
+          title: "Success",
+          description: "Loan application approved successfully",
+        });
+        fetchApplications(); // Refresh the list
+      } else {
+        toast({
+          title: "Error",
+          description: response.message || "Failed to approve loan",
+          variant: "destructive",
+        });
+      }
+    } catch (err) {
+      console.error("Error approving loan:", err);
+      toast({
+        title: "Error",
+        description: "Failed to approve loan. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setProcessingLoanId(null);
+    }
+  };
+
+  const handleReject = async () => {
+    if (!rejectingLoanId || !rejectReason.trim()) {
+      toast({
+        title: "Error",
+        description: "Please provide a reason for rejection",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setProcessingLoanId(rejectingLoanId);
+      const response = await adminApi.rejectLoan(rejectingLoanId, rejectReason);
+      
+      if (response.success) {
+        toast({
+          title: "Success",
+          description: "Loan application rejected",
+        });
+        setRejectDialogOpen(false);
+        setRejectingLoanId(null);
+        setRejectReason("");
+        fetchApplications(); // Refresh the list
+      } else {
+        toast({
+          title: "Error",
+          description: response.message || "Failed to reject loan",
+          variant: "destructive",
+        });
+      }
+    } catch (err) {
+      console.error("Error rejecting loan:", err);
+      toast({
+        title: "Error",
+        description: "Failed to reject loan. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setProcessingLoanId(null);
+    }
+  };
+
+  const openRejectDialog = (loanId: string) => {
+    setRejectingLoanId(loanId);
+    setRejectDialogOpen(true);
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedApplications.size === applications.length) {
+      setSelectedApplications(new Set());
+    } else {
+      setSelectedApplications(new Set(applications.map(app => app.id)));
+    }
+  };
+
+  const toggleSelectApplication = (id: string) => {
+    const newSelected = new Set(selectedApplications);
+    if (newSelected.has(id)) {
+      newSelected.delete(id);
+    } else {
+      newSelected.add(id);
+    }
+    setSelectedApplications(newSelected);
+  };
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-NG', {
+      style: 'currency',
+      currency: 'NGN',
+      minimumFractionDigits: 0,
+    }).format(amount);
+  };
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    });
+  };
+
+  const getStatusBadgeVariant = (status: string) => {
+    const normalizedStatus = status.toLowerCase();
+    switch (normalizedStatus) {
+      case "approved":
+        return "default";
+      case "rejected":
+        return "destructive";
+      case "pending":
+        return "secondary";
+      default:
+        return "outline";
+    }
+  };
+
+  const getStatusClassName = (status: string) => {
+    const normalizedStatus = status.toLowerCase();
+    if (normalizedStatus === "pending") {
+      return "bg-yellow-500 hover:bg-yellow-600 text-white";
+    }
+    return "";
+  };
   return (
     <AdminLayout>
       <div className="space-y-6">
@@ -35,6 +238,13 @@ const AdminApplications = () => {
           </Button>
         </div>
 
+        {error && (
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+
         <Card>
           <CardHeader>
             <div className="flex flex-col md:flex-row gap-4 justify-between">
@@ -43,10 +253,12 @@ const AdminApplications = () => {
                 <Input 
                   placeholder="Search by Applicant Name or ID..." 
                   className="pl-10"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
                 />
               </div>
               <div className="flex gap-2">
-                <Select defaultValue="date">
+                <Select value={sortBy} onValueChange={setSortBy}>
                   <SelectTrigger className="w-[180px]">
                     <SelectValue placeholder="Sort by Date" />
                   </SelectTrigger>
@@ -56,89 +268,222 @@ const AdminApplications = () => {
                     <SelectItem value="status">Sort by Status</SelectItem>
                   </SelectContent>
                 </Select>
-                <Select defaultValue="all">
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
                   <SelectTrigger className="w-[180px]">
-                    <SelectValue placeholder="Filter by Loan Type" />
+                    <SelectValue placeholder="All Status" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All Types</SelectItem>
-                    <SelectItem value="personal">Personal Loan</SelectItem>
-                    <SelectItem value="business">Business Loan</SelectItem>
-                    <SelectItem value="mortgage">Mortgage</SelectItem>
+                    <SelectItem value="all">All Status</SelectItem>
+                    <SelectItem value="pending">Pending</SelectItem>
+                    <SelectItem value="approved">Approved</SelectItem>
+                    <SelectItem value="rejected">Rejected</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
             </div>
           </CardHeader>
           <CardContent>
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b">
-                    <th className="text-left py-3 px-4">
-                      <Checkbox />
-                    </th>
-                    <th className="text-left py-3 px-4 font-medium">Applicant Name</th>
-                    <th className="text-left py-3 px-4 font-medium">Amount</th>
-                    <th className="text-left py-3 px-4 font-medium">Submitted</th>
-                    <th className="text-left py-3 px-4 font-medium">Status</th>
-                    <th className="text-left py-3 px-4 font-medium">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {applications.map((app) => (
-                    <tr key={app.id} className="border-b hover:bg-muted/50">
-                      <td className="py-3 px-4">
-                        <Checkbox />
-                      </td>
-                      <td className="py-3 px-4">
-                        <div>
-                          <div className="font-medium">{app.name}</div>
-                          <div className="text-sm text-muted-foreground">ID: {app.id}</div>
-                        </div>
-                      </td>
-                      <td className="py-3 px-4 font-medium">{app.amount}</td>
-                      <td className="py-3 px-4">{app.submitted}</td>
-                      <td className="py-3 px-4">
-                        <Badge 
-                          variant={
-                            app.status === "Approved" ? "default" : 
-                            app.status === "Rejected" ? "destructive" : 
-                            "secondary"
-                          }
-                          className={
-                            app.status === "Pending" ? "bg-yellow-500 hover:bg-yellow-600" : ""
-                          }
+            {loading ? (
+              <div className="flex items-center justify-center py-12">
+                <div className="text-center">
+                  <Loader2 className="w-8 h-8 animate-spin mx-auto mb-2 text-primary" />
+                  <p className="text-muted-foreground">Loading applications...</p>
+                </div>
+              </div>
+            ) : applications.length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground">
+                No applications found.
+              </div>
+            ) : (
+              <>
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b">
+                        <th className="text-left py-3 px-4">
+                          <Checkbox 
+                            checked={selectedApplications.size === applications.length && applications.length > 0}
+                            onCheckedChange={toggleSelectAll}
+                          />
+                        </th>
+                        <th className="text-left py-3 px-4 font-medium">Applicant Name</th>
+                        <th className="text-left py-3 px-4 font-medium">Amount</th>
+                        <th className="text-left py-3 px-4 font-medium">Submitted</th>
+                        <th className="text-left py-3 px-4 font-medium">Status</th>
+                        <th className="text-left py-3 px-4 font-medium">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {applications.map((app) => (
+                        <tr key={app.id} className="border-b hover:bg-muted/50">
+                          <td className="py-3 px-4">
+                            <Checkbox 
+                              checked={selectedApplications.has(app.id)}
+                              onCheckedChange={() => toggleSelectApplication(app.id)}
+                            />
+                          </td>
+                          <td className="py-3 px-4">
+                            <div>
+                              <div className="font-medium">{app.borrowerName}</div>
+                              <div className="text-sm text-muted-foreground">{app.borrowerEmail}</div>
+                            </div>
+                          </td>
+                          <td className="py-3 px-4 font-medium">{formatCurrency(app.principal)}</td>
+                          <td className="py-3 px-4">{formatDate(app.createdAt)}</td>
+                          <td className="py-3 px-4">
+                            <Badge 
+                              variant={getStatusBadgeVariant(app.status)}
+                              className={getStatusClassName(app.status)}
+                            >
+                              {app.status.charAt(0).toUpperCase() + app.status.slice(1)}
+                            </Badge>
+                          </td>
+                          <td className="py-3 px-4">
+                            <div className="flex gap-2">
+                              <Button 
+                                size="sm" 
+                                variant="default"
+                                onClick={() => handleApprove(app.id)}
+                                disabled={
+                                  processingLoanId === app.id || 
+                                  app.status.toLowerCase() === "approved" ||
+                                  app.status.toLowerCase() === "rejected"
+                                }
+                              >
+                                {processingLoanId === app.id ? (
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                ) : (
+                                  "Approve"
+                                )}
+                              </Button>
+                              <Button 
+                                size="sm" 
+                                variant="destructive"
+                                onClick={() => openRejectDialog(app.id)}
+                                disabled={
+                                  processingLoanId === app.id || 
+                                  app.status.toLowerCase() === "approved" ||
+                                  app.status.toLowerCase() === "rejected"
+                                }
+                              >
+                                Reject
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                
+                {/* Pagination */}
+                {totalPages > 1 && (
+                  <div className="flex items-center justify-center gap-2 mt-4">
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                      disabled={currentPage === 1}
+                    >
+                      &lt;
+                    </Button>
+                    
+                    {[...Array(Math.min(totalPages, 5))].map((_, idx) => {
+                      let pageNum;
+                      if (totalPages <= 5) {
+                        pageNum = idx + 1;
+                      } else if (currentPage <= 3) {
+                        pageNum = idx + 1;
+                      } else if (currentPage >= totalPages - 2) {
+                        pageNum = totalPages - 4 + idx;
+                      } else {
+                        pageNum = currentPage - 2 + idx;
+                      }
+                      
+                      return (
+                        <Button
+                          key={pageNum}
+                          size="sm"
+                          variant={currentPage === pageNum ? "default" : "outline"}
+                          onClick={() => setCurrentPage(pageNum)}
                         >
-                          {app.status}
-                        </Badge>
-                      </td>
-                      <td className="py-3 px-4">
-                        <div className="flex gap-2">
-                          <Button size="sm" variant="default">Approve</Button>
-                          <Button size="sm" variant="destructive">Reject</Button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            
-            <div className="flex items-center justify-center gap-2 mt-4">
-              <Button variant="outline" size="sm">&lt;</Button>
-              <Button size="sm">1</Button>
-              <Button variant="outline" size="sm">2</Button>
-              <Button variant="outline" size="sm">3</Button>
-              <Button variant="outline" size="sm">...</Button>
-              <Button variant="outline" size="sm">8</Button>
-              <Button variant="outline" size="sm">9</Button>
-              <Button variant="outline" size="sm">10</Button>
-              <Button variant="outline" size="sm">&gt;</Button>
-            </div>
+                          {pageNum}
+                        </Button>
+                      );
+                    })}
+                    
+                    {totalPages > 5 && currentPage < totalPages - 2 && (
+                      <>
+                        <span className="px-2">...</span>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setCurrentPage(totalPages)}
+                        >
+                          {totalPages}
+                        </Button>
+                      </>
+                    )}
+                    
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                      disabled={currentPage === totalPages}
+                    >
+                      &gt;
+                    </Button>
+                  </div>
+                )}
+              </>
+            )}
           </CardContent>
         </Card>
       </div>
+
+      {/* Reject Dialog */}
+      <Dialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reject Loan Application</DialogTitle>
+            <DialogDescription>
+              Please provide a reason for rejecting this loan application.
+            </DialogDescription>
+          </DialogHeader>
+          <Textarea
+            placeholder="Enter rejection reason..."
+            value={rejectReason}
+            onChange={(e) => setRejectReason(e.target.value)}
+            rows={4}
+          />
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setRejectDialogOpen(false);
+                setRejectingLoanId(null);
+                setRejectReason("");
+              }}
+            >
+              Cancel
+            </Button>
+            <Button 
+              variant="destructive" 
+              onClick={handleReject}
+              disabled={!rejectReason.trim() || !!processingLoanId}
+            >
+              {processingLoanId ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                  Rejecting...
+                </>
+              ) : (
+                "Reject Application"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AdminLayout>
   );
 };

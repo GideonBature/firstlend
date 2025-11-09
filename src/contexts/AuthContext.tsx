@@ -80,8 +80,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         throw new Error(response.message);
       }
 
-      if (response.data) {
-        setUser(response.data.user);
+      if (response.data && response.data.user) {
+        // Ensure userType is lowercase for consistency
+        const userData: User = {
+          userId: response.data.user.userId,
+          email: response.data.user.email,
+          fullName: response.data.user.fullName,
+          userType: response.data.user.userType?.toLowerCase() as 'customer' | 'admin',
+          status: response.data.user.status?.toLowerCase() || 'active',
+        };
+        setUser(userData);
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Login failed';

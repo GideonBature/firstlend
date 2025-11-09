@@ -356,6 +356,81 @@ export const loanApi = {
 };
 
 /**
+ * Admin API Types
+ */
+interface AdminLoansParams {
+  status?: string;
+  search?: string;
+  sortBy?: string;
+  sortOrder?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+interface AdminLoansResponse {
+  success: boolean;
+  message: string;
+  code: string;
+  data: LoanResponse[];
+  errors: null;
+  totalCount: number;
+  page: number;
+  pageSize: number;
+}
+
+interface RejectLoanRequest {
+  reason: string;
+}
+
+/**
+ * Admin API calls
+ */
+export const adminApi = {
+  /**
+   * Get all loan applications (admin only)
+   */
+  async getLoans(params?: AdminLoansParams): Promise<AdminLoansResponse> {
+    const queryParams = new URLSearchParams();
+    
+    if (params?.status) queryParams.append('status', params.status);
+    if (params?.search) queryParams.append('search', params.search);
+    if (params?.sortBy) queryParams.append('sortBy', params.sortBy || 'date');
+    if (params?.sortOrder) queryParams.append('sortOrder', params.sortOrder || 'desc');
+    queryParams.append('page', String(params?.page || 1));
+    queryParams.append('pageSize', String(params?.pageSize || 10));
+
+    const response = await fetch(`${API_BASE_URL}/admin/loans?${queryParams.toString()}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,
+      },
+    });
+
+    return response.json();
+  },
+
+  /**
+   * Approve a loan application
+   */
+  async approveLoan(loanId: string): Promise<ApiResponse<void>> {
+    return fetchApi<void>(`/admin/loans/${loanId}/approve`, {
+      method: 'PUT',
+    }, true);
+  },
+
+  /**
+   * Reject a loan application
+   */
+  async rejectLoan(loanId: string, reason: string): Promise<ApiResponse<void>> {
+    return fetchApi<void>(`/admin/loans/${loanId}/reject`, {
+      method: 'PUT',
+      body: JSON.stringify({ reason }),
+    }, true);
+  },
+};
+
+/**
  * Helper functions
  */
 
@@ -398,3 +473,6 @@ async function refreshAccessToken(): Promise<boolean> {
 }
 
 export default authApi;
+
+// Export types for use in components
+export type { LoanType, LoanResponse, CreateLoanRequest, MyLoansResponse, AdminLoansParams, AdminLoansResponse };

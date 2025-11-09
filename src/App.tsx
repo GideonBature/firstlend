@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { ProtectedRoute } from "@/components/ProtectedRoute";
 import Index from "./pages/Index";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
@@ -38,22 +39,22 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
-            <Route path="/admin/dashboard" element={<AdminDashboard />} />
-            <Route path="/admin/applications" element={<AdminApplications />} />
-            <Route path="/admin/customers" element={<AdminCustomers />} />
-            <Route path="/admin/payments" element={<AdminPayments />} />
-            <Route path="/admin/products" element={<AdminProducts />} />
-            <Route path="/admin/reports" element={<AdminReports />} />
-            <Route path="/admin/users" element={<AdminUsers />} />
-            <Route path="/admin/disbursement" element={<AdminDisbursement />} />
-            <Route path="/admin/risk" element={<AdminRisk />} />
-            <Route path="/admin/settings" element={<AdminSettings />} />
-            <Route path="/customer/dashboard" element={<CustomerDashboard />} />
-            <Route path="/customer/loans" element={<CustomerLoans />} />
-            <Route path="/customer/history" element={<CustomerHistory />} />
-            <Route path="/customer/profile" element={<CustomerProfile />} />
-            <Route path="/customer/support" element={<CustomerSupport />} />
-            <Route path="/customer/apply-loan" element={<ApplyLoan />} />
+            <Route path="/admin/dashboard" element={<ProtectedRoute allowedUserTypes={['admin']}><AdminDashboard /></ProtectedRoute>} />
+            <Route path="/admin/applications" element={<ProtectedRoute allowedUserTypes={['admin']}><AdminApplications /></ProtectedRoute>} />
+            <Route path="/admin/customers" element={<ProtectedRoute allowedUserTypes={['admin']}><AdminCustomers /></ProtectedRoute>} />
+            <Route path="/admin/payments" element={<ProtectedRoute allowedUserTypes={['admin']}><AdminPayments /></ProtectedRoute>} />
+            <Route path="/admin/products" element={<ProtectedRoute allowedUserTypes={['admin']}><AdminProducts /></ProtectedRoute>} />
+            <Route path="/admin/reports" element={<ProtectedRoute allowedUserTypes={['admin']}><AdminReports /></ProtectedRoute>} />
+            <Route path="/admin/users" element={<ProtectedRoute allowedUserTypes={['admin']}><AdminUsers /></ProtectedRoute>} />
+            <Route path="/admin/disbursement" element={<ProtectedRoute allowedUserTypes={['admin']}><AdminDisbursement /></ProtectedRoute>} />
+            <Route path="/admin/risk" element={<ProtectedRoute allowedUserTypes={['admin']}><AdminRisk /></ProtectedRoute>} />
+            <Route path="/admin/settings" element={<ProtectedRoute allowedUserTypes={['admin']}><AdminSettings /></ProtectedRoute>} />
+            <Route path="/customer/dashboard" element={<ProtectedRoute allowedUserTypes={['customer']}><CustomerDashboard /></ProtectedRoute>} />
+            <Route path="/customer/loans" element={<ProtectedRoute allowedUserTypes={['customer']}><CustomerLoans /></ProtectedRoute>} />
+            <Route path="/customer/history" element={<ProtectedRoute allowedUserTypes={['customer']}><CustomerHistory /></ProtectedRoute>} />
+            <Route path="/customer/profile" element={<ProtectedRoute allowedUserTypes={['customer']}><CustomerProfile /></ProtectedRoute>} />
+            <Route path="/customer/support" element={<ProtectedRoute allowedUserTypes={['customer']}><CustomerSupport /></ProtectedRoute>} />
+            <Route path="/customer/apply-loan" element={<ProtectedRoute allowedUserTypes={['customer']}><ApplyLoan /></ProtectedRoute>} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
