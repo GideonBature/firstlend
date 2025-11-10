@@ -1,7 +1,14 @@
 import { Button } from "@/components/ui/button";
 import { ArrowRight, TrendingUp } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 const Hero = () => {
+  const navigate = useNavigate();
+
+  const handleApplyNow = () => {
+    navigate("/register");
+  };
+
   return (
     <section className="relative min-h-screen flex items-center bg-gradient-to-br from-primary via-primary to-secondary overflow-hidden pt-20">
       {/* Background decorative elements */}
@@ -24,7 +31,7 @@ const Hero = () => {
             </p>
 
             <div className="flex flex-wrap gap-4">
-              <Button size="lg" className="bg-accent text-accent-foreground hover:bg-accent/90 font-semibold text-lg px-8 py-6 shadow-yellow group">
+              <Button size="lg" className="bg-accent text-accent-foreground hover:bg-accent/90 font-semibold text-lg px-8 py-6 shadow-yellow group" onClick={handleApplyNow}>
                 Apply Now
                 <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
               </Button>
