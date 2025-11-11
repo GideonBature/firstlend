@@ -28,6 +28,7 @@ import ApplyLoan from "./pages/customer/ApplyLoan";
 import PaymentSuccess from "./pages/customer/PaymentSuccess";
 import PaymentFailed from "./pages/customer/PaymentFailed";
 import NotFound from "./pages/NotFound";
+import FirstLendChat from "./pages/customer/FirstLendChat";
 
 const queryClient = new QueryClient();
 
@@ -42,27 +43,176 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
-            <Route path="/admin/dashboard" element={<ProtectedRoute allowedUserTypes={['admin']}><AdminDashboard /></ProtectedRoute>} />
-            <Route path="/admin/applications" element={<ProtectedRoute allowedUserTypes={['admin']}><AdminApplications /></ProtectedRoute>} />
-            <Route path="/admin/customers" element={<ProtectedRoute allowedUserTypes={['admin']}><AdminCustomers /></ProtectedRoute>} />
-            <Route path="/admin/payments" element={<ProtectedRoute allowedUserTypes={['admin']}><AdminPayments /></ProtectedRoute>} />
-            <Route path="/admin/products" element={<ProtectedRoute allowedUserTypes={['admin']}><AdminProducts /></ProtectedRoute>} />
-            <Route path="/admin/reports" element={<ProtectedRoute allowedUserTypes={['admin']}><AdminReports /></ProtectedRoute>} />
-            <Route path="/admin/users" element={<ProtectedRoute allowedUserTypes={['admin']}><AdminUsers /></ProtectedRoute>} />
-            <Route path="/admin/disbursement" element={<ProtectedRoute allowedUserTypes={['admin']}><AdminDisbursement /></ProtectedRoute>} />
-            <Route path="/admin/risk" element={<ProtectedRoute allowedUserTypes={['admin']}><AdminRisk /></ProtectedRoute>} />
-            <Route path="/admin/settings" element={<ProtectedRoute allowedUserTypes={['admin']}><AdminSettings /></ProtectedRoute>} />
-            <Route path="/customer/dashboard" element={<ProtectedRoute allowedUserTypes={['customer']}><CustomerDashboard /></ProtectedRoute>} />
-            <Route path="/customer/loans" element={<ProtectedRoute allowedUserTypes={['customer']}><CustomerLoans /></ProtectedRoute>} />
-            <Route path="/customer/my-loans" element={<ProtectedRoute allowedUserTypes={['customer']}><CustomerLoans /></ProtectedRoute>} />
+            <Route
+              path="/admin/dashboard"
+              element={
+                <ProtectedRoute allowedUserTypes={["admin"]}>
+                  <AdminDashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/applications"
+              element={
+                <ProtectedRoute allowedUserTypes={["admin"]}>
+                  <AdminApplications />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/customers"
+              element={
+                <ProtectedRoute allowedUserTypes={["admin"]}>
+                  <AdminCustomers />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/payments"
+              element={
+                <ProtectedRoute allowedUserTypes={["admin"]}>
+                  <AdminPayments />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/products"
+              element={
+                <ProtectedRoute allowedUserTypes={["admin"]}>
+                  <AdminProducts />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/reports"
+              element={
+                <ProtectedRoute allowedUserTypes={["admin"]}>
+                  <AdminReports />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/users"
+              element={
+                <ProtectedRoute allowedUserTypes={["admin"]}>
+                  <AdminUsers />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/disbursement"
+              element={
+                <ProtectedRoute allowedUserTypes={["admin"]}>
+                  <AdminDisbursement />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/risk"
+              element={
+                <ProtectedRoute allowedUserTypes={["admin"]}>
+                  <AdminRisk />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/settings"
+              element={
+                <ProtectedRoute allowedUserTypes={["admin"]}>
+                  <AdminSettings />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/customer/dashboard"
+              element={
+                <ProtectedRoute allowedUserTypes={["customer"]}>
+                  <CustomerDashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/customer/loans"
+              element={
+                <ProtectedRoute allowedUserTypes={["customer"]}>
+                  <CustomerLoans />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/customer/my-loans"
+              element={
+                <ProtectedRoute allowedUserTypes={["customer"]}>
+                  <CustomerLoans />
+                </ProtectedRoute>
+              }
+            />
             <Route path="/customer/loan-details/:id" element={<ProtectedRoute allowedUserTypes={['customer']}><MyLoansDetails /></ProtectedRoute>} />
-            <Route path="/customer/history" element={<ProtectedRoute allowedUserTypes={['customer']}><CustomerHistory /></ProtectedRoute>} />
-            <Route path="/customer/payment-history" element={<ProtectedRoute allowedUserTypes={['customer']}><CustomerHistory /></ProtectedRoute>} />
-            <Route path="/customer/profile" element={<ProtectedRoute allowedUserTypes={['customer']}><CustomerProfile /></ProtectedRoute>} />
-            <Route path="/customer/support" element={<ProtectedRoute allowedUserTypes={['customer']}><CustomerSupport /></ProtectedRoute>} />
-            <Route path="/customer/apply-loan" element={<ProtectedRoute allowedUserTypes={['customer']}><ApplyLoan /></ProtectedRoute>} />
-            <Route path="/payment/success" element={<ProtectedRoute allowedUserTypes={['customer']}><PaymentSuccess /></ProtectedRoute>} />
-            <Route path="/payment/failed" element={<ProtectedRoute allowedUserTypes={['customer']}><PaymentFailed /></ProtectedRoute>} />
+            <Route
+              path="/customer/history"
+              element={
+                <ProtectedRoute allowedUserTypes={["customer"]}>
+                  <CustomerHistory />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/customer/payment-history"
+              element={
+                <ProtectedRoute allowedUserTypes={["customer"]}>
+                  <CustomerHistory />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/customer/profile"
+              element={
+                <ProtectedRoute allowedUserTypes={["customer"]}>
+                  <CustomerProfile />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/customer/support"
+              element={
+                <ProtectedRoute allowedUserTypes={["customer"]}>
+                  <CustomerSupport />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/customer/chat"
+              element={
+                <ProtectedRoute allowedUserTypes={["customer"]}>
+                  <FirstLendChat />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/customer/apply-loan"
+              element={
+                <ProtectedRoute allowedUserTypes={["customer"]}>
+                  <ApplyLoan />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/payment/success"
+              element={
+                <ProtectedRoute allowedUserTypes={["customer"]}>
+                  <PaymentSuccess />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/payment/failed"
+              element={
+                <ProtectedRoute allowedUserTypes={["customer"]}>
+                  <PaymentFailed />
+                </ProtectedRoute>
+              }
+            />
+
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
