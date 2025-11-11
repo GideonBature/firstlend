@@ -122,6 +122,54 @@ interface LoanResponse {
   paymentProgress: number;
 }
 
+// Additional, more structured Loan types derived from LoanResponse.
+// Assumptions made:
+// - `status` can be one of a small set of known values (union). Adjust if backend returns different strings.
+// - Nested `borrower` and `loanType` objects are useful for components and keep the original flat properties in `LoanResponse` for compatibility.
+// - `payments` and `schedule` are optional arrays representing payment history and upcoming schedule.
+
+type LoanStatus =
+  | 'Pending'
+  | 'Approved'
+  | 'Rejected'
+  | 'Active'
+  | 'Closed'
+  | 'Defaulted'
+  | 'Paid'
+  | 'Processing'
+  | string; // allow other/unknown statuses from backend
+
+interface Loan {
+  id: string;
+  borrower: {
+    id: string;
+    name: string;
+    email?: string;
+  };
+  loanType: {
+    id: string;
+    name: string;
+    interest: number;
+  };
+  status: LoanStatus;
+  principal: number;
+  rate: number;
+  term: number; // in months (assumed)
+  outstandingBalance: number;
+  amountDue: number;
+  paymentProgress: number; // 0-100
+  nextPaymentDate?: string;
+  createdAt: string;
+  dueAt?: string;
+  employmentStatus?: string;
+  monthlyIncome?: number;
+  purpose?: string;
+
+  // Optional arrays for convenience
+  payments?: PaymentHistoryRecord[]; // uses existing exported PaymentHistoryRecord
+  schedule?: Array<{ dueDate: string; amount: number; paid?: boolean }>;
+}
+
 /**
  * Generic fetch wrapper with error handling
  */
@@ -349,8 +397,8 @@ export const loanApi = {
   /**
    * Get loan details
    */
-  async getLoanDetails(loanId: string): Promise<ApiResponse<any>> {
-    return fetchApi<any>(`/loan/${loanId}`, {
+  async getLoanDetails(loanId: string): Promise<ApiResponse<LoanResponse>> {
+    return fetchApi<LoanResponse>(`/loan/${loanId}`, {
       method: 'GET',
     }, true);
   },

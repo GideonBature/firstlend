@@ -20,6 +20,7 @@ import AdminRisk from "./pages/admin/Risk";
 import AdminSettings from "./pages/admin/Settings";
 import CustomerDashboard from "./pages/customer/Dashboard";
 import CustomerLoans from "./pages/customer/MyLoans";
+import MyLoansDetails from "./pages/customer/MyLoansDetail";
 import CustomerHistory from "./pages/customer/PaymentHistory";
 import CustomerProfile from "./pages/customer/Profile";
 import CustomerSupport from "./pages/customer/Support";
@@ -54,6 +55,7 @@ const App = () => (
             <Route path="/customer/dashboard" element={<ProtectedRoute allowedUserTypes={['customer']}><CustomerDashboard /></ProtectedRoute>} />
             <Route path="/customer/loans" element={<ProtectedRoute allowedUserTypes={['customer']}><CustomerLoans /></ProtectedRoute>} />
             <Route path="/customer/my-loans" element={<ProtectedRoute allowedUserTypes={['customer']}><CustomerLoans /></ProtectedRoute>} />
+            <Route path="/customer/loan-details/:id" element={<ProtectedRoute allowedUserTypes={['customer']}><MyLoansDetails /></ProtectedRoute>} />
             <Route path="/customer/history" element={<ProtectedRoute allowedUserTypes={['customer']}><CustomerHistory /></ProtectedRoute>} />
             <Route path="/customer/payment-history" element={<ProtectedRoute allowedUserTypes={['customer']}><CustomerHistory /></ProtectedRoute>} />
             <Route path="/customer/profile" element={<ProtectedRoute allowedUserTypes={['customer']}><CustomerProfile /></ProtectedRoute>} />
