@@ -59,12 +59,112 @@ interface CurrentUserResponse {
   status: string; // "Active", "Inactive", etc.
   emailVerified?: boolean;
   createdAt?: string;
+  bvn?: string;
+  nin?: string;
+  kycVerified?: boolean;
+  kycVerificationDate?: string;
 }
 
 interface UpdateProfileRequest {
   address?: string;
   phoneNumber?: string;
   fullName?: string;
+  bvn?: string;
+  nin?: string;
+}
+
+interface KYCDocumentType {
+  id: string;
+  documentType: string;
+  fileName?: string;
+  status: string;
+  uploadedAt?: string;
+  verificationNotes?: string;
+}
+
+interface KYCDocumentsResponse {
+  bvn?: string;
+  nin?: string;
+  governmentId?: KYCDocumentType;
+  proofOfAddress?: KYCDocumentType;
+  utilityBill?: KYCDocumentType;
+  verificationStatus?: string;
+}
+
+interface KYCVerificationRequest {
+  bvn: string;
+  nin: string;
+}
+
+interface BVNVerification {
+  isMatched: boolean;
+  providedValue: string;
+  verifiedValue: string;
+  message: string;
+}
+
+interface NINVerification {
+  isMatched: boolean;
+  providedValue: string;
+  verifiedValue: string;
+  message: string;
+}
+
+interface FullNameVerification {
+  isMatched: boolean;
+  providedValue: string;
+  verifiedValue: string;
+  message: string;
+}
+
+interface AddressHistory {
+  address: string;
+  type: string;
+  dateReported: string;
+}
+
+interface KYCVerificationResponse {
+  isVerified: boolean;
+  fullName: string;
+  dateOfBirth: string;
+  gender: string;
+  phoneNumbers: string[];
+  emailAddresses: string[];
+  addressHistory: AddressHistory[];
+  bvnVerification: BVNVerification;
+  ninVerification: NINVerification;
+  fullNameVerification: FullNameVerification;
+  warnings: string[];
+}
+
+interface KYCStatusResponse {
+  isVerified: boolean;
+  verificationDate?: string;
+  bvn: string;
+  nin: string;
+  fullName: string;
+  email: string;
+  phoneNumber: string;
+}
+
+/**
+ * Credit Score API Types
+ */
+interface CreditScoreBreakdown {
+  paymentHistoryScore: number;
+  amountsOwedScore: number;
+  lengthOfHistoryScore: number;
+  creditMixScore: number;
+  newCreditScore: number;
+  totalScore: number;
+}
+
+interface CreditScoreResponse {
+  score: number;
+  rating: string;
+  totalAccounts: number;
+  breakdown: CreditScoreBreakdown;
+  calculatedAt: string;
 }
 
 /**
@@ -151,7 +251,19 @@ async function fetchApi<T>(
       headers,
     });
 
-    const data = await response.json();
+    let data;
+    try {
+      data = await response.json();
+    } catch (parseError) {
+      console.error('JSON parse error:', parseError);
+      console.error('Response status:', response.status);
+      console.error('Response text:', await response.text());
+      return {
+        success: false,
+        message: `Server error (Status ${response.status}): Invalid response format`,
+        code: 'INVALID_RESPONSE',
+      };
+    }
 
     // Handle 401 Unauthorized - token might be expired
     if (response.status === 401 && requiresAuth) {
@@ -308,6 +420,100 @@ export const authApi = {
     return fetchApi<CurrentUserResponse>('/auth/update-profile', {
       method: 'PUT',
       body: JSON.stringify(payload),
+    }, true);
+  },
+
+  /**
+   * Upload KYC document
+   */
+  async uploadKYCDocument(
+    documentType: string,
+    file: File,
+    bvn?: string,
+    nin?: string
+  ): Promise<ApiResponse<KYCDocumentType>> {
+    const formData = new FormData();
+    formData.append('documentType', documentType);
+    formData.append('file', file);
+    if (bvn) formData.append('bvn', bvn);
+    if (nin) formData.append('nin', nin);
+
+    const token = localStorage.getItem('accessToken');
+    const headers: HeadersInit = {};
+    
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/kyc/upload`, {
+        method: 'POST',
+        headers,
+        body: formData,
+      });
+
+      const data = await response.json();
+
+      if (response.status === 401) {
+        const refreshed = await refreshAccessToken();
+        if (refreshed) {
+          return this.uploadKYCDocument(documentType, file, bvn, nin);
+        }
+        clearAuthData();
+      }
+
+      return {
+        success: response.ok,
+        message: data.message || (response.ok ? 'Success' : 'Error'),
+        data: response.ok ? data.data : undefined,
+        code: data.code,
+        errors: data.errors,
+      };
+    } catch (error) {
+      console.error('API Error:', error);
+      return {
+        success: false,
+        message: 'Network error. Please try again.',
+        code: 'NETWORK_ERROR',
+      };
+    }
+  },
+
+  /**
+   * Verify KYC information (BVN and NIN)
+   */
+  async verifyKYC(payload: KYCVerificationRequest): Promise<ApiResponse<KYCVerificationResponse>> {
+    return fetchApi<KYCVerificationResponse>('/kyc/verify', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }, true);
+  },
+
+  /**
+   * Get current KYC verification status
+   */
+  async getKYCStatus(): Promise<ApiResponse<KYCStatusResponse>> {
+    return fetchApi<KYCStatusResponse>('/kyc/status', {
+      method: 'GET',
+    }, true);
+  },
+
+  /**
+   * Update KYC verification status
+   */
+  async updateKYCStatus(isVerified: boolean, reason?: string): Promise<ApiResponse<KYCStatusResponse>> {
+    return fetchApi<KYCStatusResponse>('/kyc/status', {
+      method: 'PUT',
+      body: JSON.stringify({ isVerified, reason: reason || '' }),
+    }, true);
+  },
+
+  /**
+   * Get user's credit score
+   */
+  async getCreditScore(): Promise<ApiResponse<CreditScoreResponse>> {
+    return fetchApi<CreditScoreResponse>('/credit-score', {
+      method: 'GET',
     }, true);
   },
 };
@@ -565,5 +771,12 @@ export type {
   AdminLoansResponse,
   InitiatePaymentRequest,
   InitiatePaymentResponse,
-  VerifyPaymentResponse
+  VerifyPaymentResponse,
+  KYCVerificationRequest,
+  KYCVerificationResponse,
+  BVNVerification,
+  NINVerification,
+  FullNameVerification,
+  KYCDocumentType,
+  KYCDocumentsResponse,
 };

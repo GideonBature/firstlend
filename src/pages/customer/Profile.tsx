@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { KYCDocumentsUpload } from "@/components/customer/KYCDocumentsUpload";
 import {
   User,
   Lock,
@@ -18,12 +19,12 @@ import {
   MapPin,
   Phone,
   Mail,
-  FileBadge,
 } from "lucide-react";
 import { useMemo, useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { getInitials } from "@/lib/utils";
+import { authApi } from "@/services/api";
 
 const Profile = () => {
   const { user, refreshUserData, changePassword, updateProfile, isLoading, error } = useAuth();
@@ -33,6 +34,7 @@ const Profile = () => {
   const [isEditingAddress, setIsEditingAddress] = useState(false);
   const [editedAddress, setEditedAddress] = useState(user?.address || "");
   const [addressLoading, setAddressLoading] = useState(false);
+  const [isKYCVerified, setIsKYCVerified] = useState(false);
   const [passwordForm, setPasswordForm] = useState({
     currentPassword: "",
     newPassword: "",
@@ -42,6 +44,7 @@ const Profile = () => {
   // Fetch user data on component mount
   useEffect(() => {
     refreshUserData();
+    checkKYCStatus();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -49,6 +52,17 @@ const Profile = () => {
   useEffect(() => {
     setEditedAddress(user?.address || "");
   }, [user?.address]);
+
+  const checkKYCStatus = async () => {
+    try {
+      const response = await authApi.getKYCStatus();
+      if (response.success && response.data) {
+        setIsKYCVerified(response.data.isVerified);
+      }
+    } catch (error) {
+      console.error("Error checking KYC status:", error);
+    }
+  };
 
   const handlePasswordChange = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -140,30 +154,6 @@ const Profile = () => {
 
   const userInitials = useMemo(() => getInitials(user?.fullName, "AJ"), [user?.fullName]);
 
-  const kycRequirements = useMemo(
-    () => [
-      {
-        id: "government-id",
-        title: "Government-issued ID",
-        description: "National ID, Passport, or Driver's License",
-        status: "Not Uploaded",
-      },
-      {
-        id: "address-proof",
-        title: "Proof of Address",
-        description: "Utility bill or bank statement (last 3 months)",
-        status: "Not Uploaded",
-      },
-      {
-        id: "utility-bill",
-        title: "Recent Utility Bill",
-        description: "Electricity, water, or gas bill",
-        status: "Not Uploaded",
-      },
-    ],
-    [],
-  );
-
   return (
     <CustomerLayout>
       <div className="space-y-6">
@@ -215,41 +205,83 @@ const Profile = () => {
         </Card>
 
         {/* KYC Verification Card */}
-        <Card className="border-yellow-200 bg-yellow-50">
-          <CardContent className="p-6">
-            <div className="flex items-start justify-between gap-4">
-              <div className="flex items-start gap-4">
-                <div className="w-12 h-12 bg-yellow-500 rounded-lg flex items-center justify-center flex-shrink-0">
-                  <Clock className="w-6 h-6 text-white" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2 mb-2">
-                    <h3 className="font-semibold text-lg">Complete Your KYC Verification</h3>
-                    <Badge className="bg-yellow-500 hover:bg-yellow-600 text-white">Pending</Badge>
+        {isKYCVerified ? (
+          <Card className="border-green-200 bg-green-50">
+            <CardContent className="p-6">
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex items-start gap-4">
+                  <div className="w-12 h-12 bg-green-500 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <CheckCircle2 className="w-6 h-6 text-white" />
                   </div>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    To unlock full access to all loan features and increase your credit limit, please complete your profile verification by uploading the required documents.
-                  </p>
-                  <ul className="space-y-1 text-sm text-muted-foreground">
-                    <li className="flex items-center gap-2">
-                      <CheckCircle2 className="w-4 h-4 text-green-600" />
-                      Unlock higher loan limits
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <CheckCircle2 className="w-4 h-4 text-green-600" />
-                      Faster loan approval process
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <CheckCircle2 className="w-4 h-4 text-green-600" />
-                      Access to premium loan products
-                    </li>
-                  </ul>
+                  <div>
+                    <div className="flex items-center gap-2 mb-2">
+                      <h3 className="font-semibold text-lg">KYC Verification Completed</h3>
+                      <Badge className="bg-green-500 hover:bg-green-600 text-white">Completed</Badge>
+                    </div>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      Your KYC verification is complete! You are now ready to apply for loans and unlock all premium features.
+                    </p>
+                    <ul className="space-y-1 text-sm text-muted-foreground">
+                      <li className="flex items-center gap-2">
+                        <CheckCircle2 className="w-4 h-4 text-green-600" />
+                        Full access to all loan products
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <CheckCircle2 className="w-4 h-4 text-green-600" />
+                        Higher loan limits available
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <CheckCircle2 className="w-4 h-4 text-green-600" />
+                        Faster loan approval process
+                      </li>
+                    </ul>
+                  </div>
                 </div>
               </div>
-              <Button>Complete KYC</Button>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        ) : (
+          <Card className="border-yellow-200 bg-yellow-50">
+            <CardContent className="p-6">
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex items-start gap-4">
+                  <div className="w-12 h-12 bg-yellow-500 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <Clock className="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2 mb-2">
+                      <h3 className="font-semibold text-lg">Complete Your KYC Verification</h3>
+                      <Badge className="bg-yellow-500 hover:bg-yellow-600 text-white">Pending</Badge>
+                    </div>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      To unlock full access to all loan features and increase your credit limit, please complete your profile verification by uploading the required documents.
+                    </p>
+                    <ul className="space-y-1 text-sm text-muted-foreground">
+                      <li className="flex items-center gap-2">
+                        <CheckCircle2 className="w-4 h-4 text-green-600" />
+                        Unlock higher loan limits
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <CheckCircle2 className="w-4 h-4 text-green-600" />
+                        Faster loan approval process
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <CheckCircle2 className="w-4 h-4 text-green-600" />
+                        Access to premium loan products
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+                <Button 
+                  onClick={() => setActiveTab("kyc")}
+                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                >
+                  Complete KYC
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Settings Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
@@ -435,54 +467,7 @@ const Profile = () => {
           </TabsContent>
 
           <TabsContent value="kyc" className="space-y-6">
-            <Card className="rounded-2xl border border-border/60 shadow-sm">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-xl">KYC Documents</CardTitle>
-                <p className="text-sm text-muted-foreground">Verify your identity to unlock premium features.</p>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <Alert className="rounded-2xl border border-blue-200 bg-blue-50 text-blue-800">
-                  <AlertTitle className="flex items-center gap-2">
-                    <Clock className="w-5 h-5" />
-                    Document Verification Status
-                  </AlertTitle>
-                  <AlertDescription className="text-sm">
-                    Your documents are pending verification. Complete the process to unlock premium features.
-                  </AlertDescription>
-                </Alert>
-
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold text-foreground">Required Documents</h3>
-                  <div className="space-y-4">
-                    {kycRequirements.map((item) => (
-                      <div
-                        key={item.id}
-                        className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 rounded-2xl border border-border/60 bg-card px-4 py-5 shadow-sm"
-                      >
-                        <div className="flex items-start gap-4">
-                          <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-primary/10 bg-primary/5 text-primary">
-                            <FileBadge className="h-6 w-6" />
-                          </div>
-                          <div>
-                            <p className="text-base font-semibold text-foreground">{item.title}</p>
-                            <p className="text-sm text-muted-foreground">{item.description}</p>
-                          </div>
-                        </div>
-                        <Badge className="w-fit rounded-full bg-amber-100 text-amber-600 border border-amber-200 px-3 py-1 text-xs font-medium">
-                          {item.status}
-                        </Badge>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="flex justify-center">
-                  <Button className="rounded-full bg-yellow-400 px-8 py-5 text-base font-semibold text-white hover:bg-yellow-500">
-                    Upload Documents
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
+            <KYCDocumentsUpload onVerificationComplete={checkKYCStatus} />
           </TabsContent>
 
           <TabsContent value="preferences" className="space-y-6">

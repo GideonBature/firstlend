@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { CustomerLayout } from "@/components/customer/CustomerLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,8 +7,9 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart, PieChart, Pie, Cell } from "recharts";
-import { DollarSign, TrendingUp, Calendar, Lightbulb, X, Brain, Handshake } from "lucide-react";
+import { DollarSign, TrendingUp, Calendar, Lightbulb, X, Brain, Handshake, Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { authApi } from "@/services/api";
 
 const paymentTrendData = [
   { month: "Jan", amount: 0 },
@@ -47,6 +48,12 @@ const recentTransactions = [
 const CustomerDashboard = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const [creditScore, setCreditScore] = useState<number | null>(null);
+  const [creditRating, setCreditRating] = useState<string>("");
+  const [isLoadingCreditScore, setIsLoadingCreditScore] = useState(true);
+  const [totalAccounts, setTotalAccounts] = useState<number>(0);
+  const [scoreBreakdown, setScoreBreakdown] = useState<any>(null);
+  
   const userFirstName = useMemo(() => {
     if (!user?.fullName) {
       return "User";
@@ -55,6 +62,61 @@ const CustomerDashboard = () => {
     const parts = user.fullName.trim().split(/\s+/);
     return parts[0] || "User";
   }, [user?.fullName]);
+
+  // Fetch credit score on mount
+  useEffect(() => {
+    const fetchCreditScore = async () => {
+      try {
+        setIsLoadingCreditScore(true);
+        const response = await authApi.getCreditScore();
+        if (response.success && response.data) {
+          setCreditScore(response.data.score);
+          setCreditRating(response.data.rating);
+          setTotalAccounts(response.data.totalAccounts);
+          setScoreBreakdown(response.data.breakdown);
+        }
+      } catch (error) {
+        console.error("Error fetching credit score:", error);
+      } finally {
+        setIsLoadingCreditScore(false);
+      }
+    };
+
+    fetchCreditScore();
+  }, []);
+
+  // Get color based on credit rating
+  const getCreditScoreColor = (rating: string) => {
+    switch (rating.toLowerCase()) {
+      case 'excellent':
+        return 'border-green-500 text-green-600';
+      case 'very good':
+      case 'good':
+        return 'border-blue-500 text-blue-600';
+      case 'fair':
+        return 'border-yellow-500 text-yellow-600';
+      case 'poor':
+        return 'border-red-500 text-red-600';
+      default:
+        return 'border-gray-500 text-gray-600';
+    }
+  };
+
+  const getBadgeColor = (rating: string) => {
+    switch (rating.toLowerCase()) {
+      case 'excellent':
+        return 'bg-green-500 hover:bg-green-600';
+      case 'very good':
+      case 'good':
+        return 'bg-blue-500 hover:bg-blue-600';
+      case 'fair':
+        return 'bg-yellow-500 hover:bg-yellow-600';
+      case 'poor':
+        return 'bg-red-500 hover:bg-red-600';
+      default:
+        return 'bg-gray-500 hover:bg-gray-600';
+    }
+  };
   
   return (
     <CustomerLayout>
@@ -238,35 +300,71 @@ const CustomerDashboard = () => {
                 <CardTitle>Credit Score</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="flex flex-col items-center">
-                  <div className="relative w-32 h-32">
-                    <div className="absolute inset-0 rounded-full border-8 border-green-500"></div>
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <div className="text-center">
-                        <div className="text-3xl font-bold">720</div>
-                        <div className="text-sm text-muted-foreground">Very Good</div>
-                      </div>
-                    </div>
+                {isLoadingCreditScore ? (
+                  <div className="flex flex-col items-center justify-center py-8">
+                    <Loader2 className="w-8 h-8 animate-spin text-muted-foreground mb-2" />
+                    <p className="text-sm text-muted-foreground">Loading credit score...</p>
                   </div>
-                  <Badge className="mt-2 bg-green-500 hover:bg-green-600 text-white">
-                    +25 Points this month
-                  </Badge>
-                </div>
-                <div>
-                  <h4 className="text-sm font-semibold mb-2">Credit Score Trend</h4>
-                  <ResponsiveContainer width="100%" height={150}>
-                    <LineChart data={creditScoreTrendData}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="month" />
-                      <YAxis domain={[680, 730]} />
-                      <Tooltip />
-                      <Line type="monotone" dataKey="score" stroke="#10B981" strokeWidth={2} />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Your very good score unlocks our best loan products and interest rates.
-                </p>
+                ) : creditScore !== null ? (
+                  <>
+                    <div className="flex flex-col items-center">
+                      <div className="relative w-32 h-32">
+                        <div className={`absolute inset-0 rounded-full border-8 ${getCreditScoreColor(creditRating).split(' ')[0]}`}></div>
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <div className="text-center">
+                            <div className={`text-3xl font-bold ${getCreditScoreColor(creditRating).split(' ')[1]}`}>
+                              {Math.round(creditScore)}
+                            </div>
+                            <div className="text-sm text-muted-foreground">{creditRating}</div>
+                          </div>
+                        </div>
+                      </div>
+                      {scoreBreakdown && (
+                        <div className="mt-4 w-full space-y-2">
+                          <div className="text-xs text-muted-foreground">
+                            <div className="flex justify-between mb-1">
+                              <span>Payment History</span>
+                              <span className="font-medium">{scoreBreakdown.paymentHistoryScore}%</span>
+                            </div>
+                            <Progress value={scoreBreakdown.paymentHistoryScore} className="h-1" />
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            <div className="flex justify-between mb-1">
+                              <span>Amounts Owed</span>
+                              <span className="font-medium">{scoreBreakdown.amountsOwedScore.toFixed(1)}%</span>
+                            </div>
+                            <Progress value={scoreBreakdown.amountsOwedScore} className="h-1" />
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            <div className="flex justify-between mb-1">
+                              <span>Credit History Length</span>
+                              <span className="font-medium">{scoreBreakdown.lengthOfHistoryScore.toFixed(1)}%</span>
+                            </div>
+                            <Progress value={scoreBreakdown.lengthOfHistoryScore} className="h-1" />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground text-center">
+                      {creditRating.toLowerCase() === 'poor' 
+                        ? "Improve your credit by making on-time payments and reducing debt."
+                        : creditRating.toLowerCase() === 'fair'
+                        ? "Keep up the good work! Consistent payments will improve your score."
+                        : creditRating.toLowerCase() === 'good'
+                        ? "Good score! You qualify for competitive loan products."
+                        : creditRating.toLowerCase() === 'very good'
+                        ? "Very good score! You have access to our best loan products."
+                        : "Excellent score! You unlock our premium loan products and best interest rates."}
+                    </p>
+                    <p className="text-xs text-muted-foreground text-center">
+                      Total Accounts: {totalAccounts}
+                    </p>
+                  </>
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-8">
+                    <p className="text-sm text-muted-foreground">No credit score data available</p>
+                  </div>
+                )}
               </CardContent>
             </Card>
 
