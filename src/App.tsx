@@ -147,7 +147,14 @@ const App = () => (
                 </ProtectedRoute>
               }
             />
-            <Route path="/customer/loan-details/:id" element={<ProtectedRoute allowedUserTypes={['customer']}><MyLoansDetails /></ProtectedRoute>} />
+            <Route
+              path="/customer/loan-details/:id"
+              element={
+                <ProtectedRoute allowedUserTypes={['customer']}>
+                  <MyLoansDetails />
+                </ProtectedRoute>
+              }
+            />
             <Route
               path="/customer/history"
               element={

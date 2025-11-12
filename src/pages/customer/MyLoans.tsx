@@ -295,9 +295,12 @@ const MyLoans = () => {
                                     >
                                       Make Payment
                                     </Button>
-                                    <Button variant="outline" className="min-w-[130px]">
+                                    <Button variant="outline" className="min-w-[130px]"
+                                      onClick={() => {
+                                        navigate(`/customer/loan-details/${loan.id}`);
+                                      }}
+                                    >
                                       View Details
-                            
                                     </Button>
                                   </>
                                 ) : loan.status.toLowerCase() === "overdue" ? (
@@ -309,7 +312,12 @@ const MyLoans = () => {
                                     >
                                       Pay Now
                                     </Button>
-                                    <Button variant="outline" className="min-w-[130px]">
+                                      <Button variant="outline" className="min-w-[130px]"
+                                        onClick={() => {
+                                          navigate(`/customer/loan-details/${loan.id}`);
+                                        }
+                                        }
+                                      >
                                       View Details
                                     </Button>
                                   </>
@@ -319,7 +327,10 @@ const MyLoans = () => {
                                   </Button>
                                 ) : (
                                         <Button variant="outline" className="min-w-[130px]"
-                                          onClick={() => navigate(`/customer/loan-details/${loan.id}`)}>
+                                          onClick={() => {
+                                            navigate(`/customer/loan-details/${loan.id}`);                                           
+                                          }
+                                          }>
                                     View Details
                                   </Button>
                                 )}
