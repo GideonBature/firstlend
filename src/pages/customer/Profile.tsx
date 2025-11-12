@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { useMemo, useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useLocation } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { getInitials } from "@/lib/utils";
 import { authApi } from "@/services/api";
@@ -29,6 +30,7 @@ import { authApi } from "@/services/api";
 const Profile = () => {
   const { user, refreshUserData, changePassword, updateProfile, isLoading, error } = useAuth();
   const { toast } = useToast();
+  const location = useLocation();
   const [activeTab, setActiveTab] = useState("personal");
   const [passwordLoading, setPasswordLoading] = useState(false);
   const [isEditingAddress, setIsEditingAddress] = useState(false);
@@ -146,6 +148,13 @@ const Profile = () => {
       setAddressLoading(false);
     }
   };
+
+  useEffect(() => {
+    const defaultTab = (location.state as { defaultTab?: string } | null)?.defaultTab;
+    if (defaultTab) {
+      setActiveTab(defaultTab);
+    }
+  }, [location.state]);
 
   const handleCancelEdit = () => {
     setEditedAddress(user?.address || "");

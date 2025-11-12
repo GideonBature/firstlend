@@ -7,7 +7,9 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart, PieChart, Pie, Cell } from "recharts";
-import { DollarSign, TrendingUp, Calendar, Lightbulb, X, Brain, Handshake, Loader2 } from "lucide-react";
+import { DollarSign, TrendingUp, Calendar, Lightbulb, X, Brain, Handshake, Loader2, MessageCircle, XCircle } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import FirstLendChat from "@/pages/customer/FirstLendChat";
 import { useAuth } from "@/contexts/AuthContext";
 import { authApi, loanApi, paymentApi } from "@/services/api";
 import type { LoanResponse, PaymentHistoryRecord } from "@/services/api";
@@ -40,6 +42,8 @@ const CustomerDashboard = () => {
   const [isLoadingLoans, setIsLoadingLoans] = useState(true);
   const [isLoadingPayments, setIsLoadingPayments] = useState(true);
   const [onTimePayments, setOnTimePayments] = useState(0);
+  const [isKYCVerified, setIsKYCVerified] = useState<boolean | null>(null);
+  const [isChatOpen, setIsChatOpen] = useState(false);
   
   const userFirstName = useMemo(() => {
     if (!user?.fullName) {
@@ -70,6 +74,23 @@ const CustomerDashboard = () => {
     };
 
     fetchCreditScore();
+  }, []);
+
+  useEffect(() => {
+    const fetchKYCStatus = async () => {
+      try {
+        const response = await authApi.getKYCStatus();
+        if (response.success && response.data) {
+          setIsKYCVerified(response.data.isVerified);
+        } else {
+          setIsKYCVerified(null);
+        }
+      } catch (error) {
+        console.error("Error fetching KYC status:", error);
+      }
+    };
+
+    fetchKYCStatus();
   }, []);
 
   // Fetch loans and payment history
@@ -296,6 +317,26 @@ const CustomerDashboard = () => {
           <h1 className="text-3xl font-bold mb-2">Welcome back, {userFirstName}!</h1>
           <p className="text-muted-foreground">Here's what's happening with your loans today.</p>
         </div>
+
+        {isKYCVerified === false && (
+          <Alert className="border-blue-200 bg-blue-50">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <AlertTitle className="text-blue-900">Complete Your KYC Verification</AlertTitle>
+                <AlertDescription>
+                  Verify your identity to unlock higher loan limits and faster approvals.
+                </AlertDescription>
+              </div>
+              <Button
+                size="sm"
+                className="w-full sm:w-auto"
+                onClick={() => navigate("/customer/profile", { state: { defaultTab: "kyc" } })}
+              >
+                Complete KYC
+              </Button>
+            </div>
+          </Alert>
+        )}
 
         {/* Alert Banner */}
         {onTimePayments > 0 && (
@@ -681,6 +722,33 @@ const CustomerDashboard = () => {
             </Card>
           </div>
         </div>
+      </div>
+
+      {/* Floating Chat Assistant */}
+      <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-3">
+        {isChatOpen && (
+          <div className="w-[90vw] max-w-md bg-white rounded-2xl shadow-2xl border border-blue-100">
+            <div className="flex items-center justify-between px-4 py-3 border-b bg-blue-50 rounded-t-2xl">
+              <div>
+                <p className="font-semibold text-sm text-blue-900">FirstLend AI Assistant</p>
+                <p className="text-xs text-blue-700">Get instant answers powered by AI</p>
+              </div>
+              <Button variant="ghost" size="icon" onClick={() => setIsChatOpen(false)}>
+                <XCircle className="w-5 h-5 text-blue-900" />
+              </Button>
+            </div>
+            <div className="p-4">
+              <FirstLendChat />
+            </div>
+          </div>
+        )}
+
+        <Button
+          className="rounded-full shadow-lg bg-blue-600 hover:bg-blue-700 w-14 h-14"
+          onClick={() => setIsChatOpen((prev) => !prev)}
+        >
+          <MessageCircle className="w-6 h-6 text-white" />
+        </Button>
       </div>
     </CustomerLayout>
   );
