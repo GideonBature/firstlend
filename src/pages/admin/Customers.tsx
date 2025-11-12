@@ -1,10 +1,11 @@
+import { useEffect, useState } from "react";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Search, Plus, Download, MoreVertical } from "lucide-react";
+import { Search, Plus, Download, MoreVertical, Loader2 } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -12,6 +13,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { adminApi, AdminUserStats } from "@/services/api";
 
 const customers = [
   { name: "Adewale Adeyemi", account: "3090XXXXX", email: "adewale.a@email.com", registered: "12 Jan 2023", status: "Active Loan" },
@@ -22,6 +25,64 @@ const customers = [
 ];
 
 const AdminCustomers = () => {
+  const [userStats, setUserStats] = useState<AdminUserStats | null>(null);
+  const [statsLoading, setStatsLoading] = useState(true);
+  const [statsError, setStatsError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const loadStats = async () => {
+      try {
+        setStatsLoading(true);
+        setStatsError(null);
+        const response = await adminApi.getUserStats();
+        if (response.success && response.data) {
+          setUserStats(response.data);
+        } else {
+          setStatsError(response.message || "Unable to fetch user statistics.");
+        }
+      } catch (error) {
+        console.error("Failed to load user stats:", error);
+        setStatsError("An unexpected error occurred while loading stats.");
+      } finally {
+        setStatsLoading(false);
+      }
+    };
+
+    loadStats();
+  }, []);
+
+  const formatCurrency = (amount?: number) => {
+    if (typeof amount !== "number") return "--";
+    return new Intl.NumberFormat("en-NG", {
+      style: "currency",
+      currency: "NGN",
+      maximumFractionDigits: 0,
+    }).format(amount);
+  };
+
+  const statsCards = [
+    {
+      label: "Total Users",
+      value: userStats?.totalUsers?.toLocaleString() ?? "--",
+      helper: "All registered customers",
+    },
+    {
+      label: "Active Users",
+      value: userStats?.activeUsers?.toLocaleString() ?? "--",
+      helper: "Currently active accounts",
+    },
+    {
+      label: "Users With Loans",
+      value: userStats?.usersWithLoans?.toLocaleString() ?? "--",
+      helper: "At least one loan",
+    },
+    {
+      label: "Total Borrowed",
+      value: formatCurrency(userStats?.totalBorrowedAmount),
+      helper: "Total principal disbursed",
+    },
+  ];
+
   return (
     <AdminLayout>
       <div className="space-y-6">
@@ -34,6 +95,32 @@ const AdminCustomers = () => {
             <Plus className="w-4 h-4" />
             Add New Customer
           </Button>
+        </div>
+
+        {statsError && (
+          <Alert variant="destructive">
+            <AlertDescription>{statsError}</AlertDescription>
+          </Alert>
+        )}
+
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+          {statsCards.map((card) => (
+            <Card key={card.label}>
+              <CardHeader className="pb-2">
+                <p className="text-sm font-medium text-muted-foreground">{card.label}</p>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-primary flex items-center gap-2 min-h-[32px]">
+                  {statsLoading ? (
+                    <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+                  ) : (
+                    card.value
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">{card.helper}</p>
+              </CardContent>
+            </Card>
+          ))}
         </div>
 
         <Card>

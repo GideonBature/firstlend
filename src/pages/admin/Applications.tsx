@@ -224,6 +224,15 @@ const AdminApplications = () => {
     }
     return "";
   };
+
+  const shouldDisableAction = (status: string) => {
+    const normalizedStatus = status.toLowerCase();
+    return (
+      normalizedStatus === "approved" ||
+      normalizedStatus === "rejected" ||
+      normalizedStatus === "active"
+    );
+  };
   return (
     <AdminLayout>
       <div className="space-y-6">
@@ -346,8 +355,7 @@ const AdminApplications = () => {
                                 onClick={() => handleApprove(app.id)}
                                 disabled={
                                   processingLoanId === app.id || 
-                                  app.status.toLowerCase() === "approved" ||
-                                  app.status.toLowerCase() === "rejected"
+                                  shouldDisableAction(app.status)
                                 }
                               >
                                 {processingLoanId === app.id ? (
@@ -362,8 +370,7 @@ const AdminApplications = () => {
                                 onClick={() => openRejectDialog(app.id)}
                                 disabled={
                                   processingLoanId === app.id || 
-                                  app.status.toLowerCase() === "approved" ||
-                                  app.status.toLowerCase() === "rejected"
+                                  shouldDisableAction(app.status)
                                 }
                               >
                                 Reject

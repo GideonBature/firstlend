@@ -589,6 +589,17 @@ interface RejectLoanRequest {
   reason: string;
 }
 
+export interface AdminUserStats {
+  totalUsers: number;
+  activeUsers: number;
+  inactiveUsers: number;
+  suspendedUsers: number;
+  usersWithLoans: number;
+  usersWithoutLoans: number;
+  averageMonthlyIncome: number;
+  totalBorrowedAmount: number;
+}
+
 /**
  * Admin API calls
  */
@@ -633,6 +644,15 @@ export const adminApi = {
     return fetchApi<void>(`/admin/loans/${loanId}/reject`, {
       method: 'PUT',
       body: JSON.stringify({ reason }),
+    }, true);
+  },
+
+  /**
+   * Get aggregated user statistics for dashboard/customers view
+   */
+  async getUserStats(): Promise<ApiResponse<AdminUserStats>> {
+    return fetchApi<AdminUserStats>('/admin/dashboard/users/stats', {
+      method: 'GET',
     }, true);
   },
 };
