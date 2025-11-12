@@ -600,6 +600,124 @@ export interface AdminUserStats {
   totalBorrowedAmount: number;
 }
 
+export interface AdminUser {
+  id: string;
+  fullName: string;
+  email: string;
+  phoneNumber: string;
+  address: string;
+  accountNumber: string;
+  userType: string;
+  status: string;
+  createdAt: string;
+  totalLoans: number;
+  totalBorrowed: number;
+  loanStatus: string;
+}
+
+interface AdminUsersParams {
+  page?: number;
+  pageSize?: number;
+  userType?: string;
+}
+
+interface AdminUsersResponse {
+  success: boolean;
+  message: string;
+  code: string;
+  data: AdminUser[];
+  errors: null;
+  totalCount: number;
+  page: number;
+  pageSize: number;
+}
+
+export interface AdminPayment {
+  paymentId: string;
+  customerName: string;
+  loanId: string;
+  dueDate: string;
+  amount: number;
+  status: string;
+  createdAt: string;
+}
+
+interface AdminPaymentsParams {
+  status?: string;
+  search?: string;
+  startDate?: string;
+  endDate?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+interface AdminPaymentsResponse {
+  success: boolean;
+  message: string;
+  code: string;
+  data: AdminPayment[];
+  errors: null;
+  totalCount: number;
+  page: number;
+  pageSize: number;
+}
+
+export interface AdminDashboardSummary {
+  period: string;
+  dateRange: {
+    start: string;
+    end: string;
+  };
+  totalNewApplications: number;
+  applicationsChangePercentage: number;
+  totalDisbursed: number;
+  disbursedChangePercentage: number;
+  totalOutstanding: number;
+  outstandingChangePercentage: number;
+  loanApplicationStatus: {
+    pending: number;
+    approved: number;
+    rejected: number;
+    underReview: number;
+  };
+  loanTypeDistribution: Array<{
+    loanType: string;
+    count: number;
+    percentage: number;
+  }>;
+  monthlyDisbursementTrend: Array<{
+    month: string;
+    amount: number;
+  }>;
+}
+
+export interface AdminLoanProduct {
+  id: string;
+  name: string;
+  interest: number;
+  maxTermMonths: number;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface AdminLoanProductsResponse {
+  success: boolean;
+  message: string;
+  code: string;
+  data: AdminLoanProduct[];
+  errors: null;
+  totalCount: number;
+  page: number;
+  pageSize: number;
+}
+
+interface LoanProductPayload {
+  name: string;
+  interest: number;
+  maxTermMonths?: number;
+}
+
 /**
  * Admin API calls
  */
@@ -653,6 +771,105 @@ export const adminApi = {
   async getUserStats(): Promise<ApiResponse<AdminUserStats>> {
     return fetchApi<AdminUserStats>('/admin/dashboard/users/stats', {
       method: 'GET',
+    }, true);
+  },
+
+  /**
+   * Get paginated list of users
+   */
+  async getUsers(params?: AdminUsersParams): Promise<AdminUsersResponse> {
+    const queryParams = new URLSearchParams();
+    queryParams.append('page', String(params?.page || 1));
+    queryParams.append('pageSize', String(params?.pageSize || 10));
+    if (params?.userType) queryParams.append('userType', params.userType);
+
+    const response = await fetch(`${API_BASE_URL}/admin/users?${queryParams.toString()}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,
+      },
+    });
+
+    return response.json();
+  },
+
+  /**
+   * Get paginated payments with optional filters
+   */
+  async getPayments(params?: AdminPaymentsParams): Promise<AdminPaymentsResponse> {
+    const queryParams = new URLSearchParams();
+    queryParams.append('page', String(params?.page || 1));
+    queryParams.append('pageSize', String(params?.pageSize || 10));
+    if (params?.status) queryParams.append('status', params.status);
+    if (params?.search) queryParams.append('search', params.search);
+    if (params?.startDate) queryParams.append('startDate', params.startDate);
+    if (params?.endDate) queryParams.append('endDate', params.endDate);
+
+    const response = await fetch(`${API_BASE_URL}/admin/payments?${queryParams.toString()}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,
+      },
+    });
+
+    return response.json();
+  },
+
+  /**
+   * Get dashboard summary metrics
+   */
+  async getDashboardSummary(period: string): Promise<ApiResponse<AdminDashboardSummary>> {
+    const queryParams = new URLSearchParams();
+    if (period) queryParams.append('period', period);
+
+    const queryString = queryParams.toString();
+    const endpoint = `/admin/dashboard/summary${queryString ? `?${queryString}` : ''}`;
+
+    return fetchApi<AdminDashboardSummary>(endpoint, {
+      method: 'GET',
+    }, true);
+  },
+
+  /**
+   * Loan product management
+   */
+  async getLoanProducts(page: number = 1, pageSize: number = 10): Promise<AdminLoanProductsResponse> {
+    const response = await fetch(`${API_BASE_URL}/LoanType?page=${page}&pageSize=${pageSize}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,
+      },
+    });
+
+    return response.json();
+  },
+
+  async createLoanProduct(payload: LoanProductPayload): Promise<ApiResponse<AdminLoanProduct>> {
+    return fetchApi<AdminLoanProduct>('/LoanType', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }, true);
+  },
+
+  async updateLoanProduct(id: string, payload: LoanProductPayload): Promise<ApiResponse<AdminLoanProduct>> {
+    return fetchApi<AdminLoanProduct>(`/LoanType/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    }, true);
+  },
+
+  async toggleLoanProductStatus(id: string): Promise<ApiResponse<AdminLoanProduct>> {
+    return fetchApi<AdminLoanProduct>(`/LoanType/${id}/toggle-status`, {
+      method: 'PATCH',
+    }, true);
+  },
+
+  async deleteLoanProduct(id: string): Promise<ApiResponse<void>> {
+    return fetchApi<void>(`/LoanType/${id}`, {
+      method: 'DELETE',
     }, true);
   },
 };

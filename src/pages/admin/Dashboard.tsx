@@ -1,42 +1,151 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Area, AreaChart, Legend } from "recharts";
-import { TrendingUp, Sparkles } from "lucide-react";
+import { TrendingUp, Sparkles, Loader2 } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { adminApi, AdminDashboardSummary } from "@/services/api";
 
-const applicationStatusData = [
-  { name: "Pending", value: 0.9, fill: "#F4C430" },
-  { name: "Approved", value: 0.7, fill: "#1E3A8A" },
-  { name: "Rejected", value: 0.6, fill: "#EF4444" },
-  { name: "Under Review", value: 0.5, fill: "#8B5CF6" },
+const loanStatusColors = {
+  pending: "#F4C430",
+  approved: "#1E3A8A",
+  rejected: "#EF4444",
+  underReview: "#8B5CF6",
+};
+
+const loanTypeColors = ["#1E3A8A", "#F4C430", "#10B981", "#60A5FA", "#F59E0B", "#EF4444", "#6366F1"];
+
+const periodOptions = [
+  { key: "today", label: "Today" },
+  { key: "week", label: "Last 7 Days" },
+  { key: "month", label: "This Month" },
 ];
 
-const loanTypeDistributionData = [
-  { name: "Personal", value: 35, fill: "#1E3A8A" },
-  { name: "SME", value: 17, fill: "#F4C430" },
-  { name: "Mortgage", value: 7, fill: "#10B981" },
-  { name: "Auto", value: 25, fill: "#60A5FA" },
-  { name: "Education", value: 11, fill: "#F59E0B" },
-];
-
-const monthlyTrendData = [
-  { month: "Jan", amount: 25 },
-  { month: "Feb", amount: 30 },
-  { month: "Mar", amount: 35 },
-  { month: "Apr", amount: 40 },
-  { month: "May", amount: 45 },
-  { month: "Jun", amount: 50 },
-  { month: "Jul", amount: 55 },
-  { month: "Aug", amount: 60 },
-  { month: "Sep", amount: 65 },
-  { month: "Oct", amount: 70 },
-];
-
+const periodQueryMap: Record<string, string> = {
+  today: "day",
+  week: "week",
+  month: "month",
+};
 
 const AdminDashboard = () => {
   const [selectedPeriod, setSelectedPeriod] = useState("month");
+  const [summary, setSummary] = useState<AdminDashboardSummary | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchSummary = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const periodParam = periodQueryMap[selectedPeriod] || "month";
+        const response = await adminApi.getDashboardSummary(periodParam);
+
+        if (response.success && response.data) {
+          setSummary(response.data);
+        } else {
+          setError(response.message || "Unable to load dashboard summary.");
+        }
+      } catch (err) {
+        console.error("Failed to fetch dashboard summary:", err);
+        setError("Failed to load dashboard summary. Please try again.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchSummary();
+  }, [selectedPeriod]);
+
+  const formatCurrency = (value?: number, maximumFractionDigits = 0) => {
+    if (typeof value !== "number") return "--";
+    return new Intl.NumberFormat("en-NG", {
+      style: "currency",
+      currency: "NGN",
+      maximumFractionDigits,
+    }).format(value);
+  };
+
+  const formatChange = (value?: number) => {
+    if (typeof value !== "number") return "--";
+    const formatted = value.toFixed(1).replace(/\.0$/, "");
+    return `${value >= 0 ? "+" : ""}${formatted}%`;
+  };
+
+  const metrics = [
+    {
+      label: "Total New Applications",
+      value: summary?.totalNewApplications,
+      change: summary?.applicationsChangePercentage,
+    },
+    {
+      label: "Total Disbursed",
+      value: summary?.totalDisbursed,
+      change: summary?.disbursedChangePercentage,
+      isCurrency: true,
+      precision: 2,
+    },
+    {
+      label: "Total Outstanding",
+      value: summary?.totalOutstanding,
+      change: summary?.outstandingChangePercentage,
+      isCurrency: true,
+      precision: 2,
+    },
+  ];
+
+  const applicationStatusData = [
+    {
+      name: "Pending",
+      value: summary?.loanApplicationStatus.pending ?? 0,
+      fill: loanStatusColors.pending,
+    },
+    {
+      name: "Approved",
+      value: summary?.loanApplicationStatus.approved ?? 0,
+      fill: loanStatusColors.approved,
+    },
+    {
+      name: "Rejected",
+      value: summary?.loanApplicationStatus.rejected ?? 0,
+      fill: loanStatusColors.rejected,
+    },
+    {
+      name: "Under Review",
+      value: summary?.loanApplicationStatus.underReview ?? 0,
+      fill: loanStatusColors.underReview,
+    },
+  ];
+
+  const loanTypeDistributionData =
+    summary?.loanTypeDistribution.map((type, index) => ({
+      name: type.loanType,
+      value: type.count,
+      fill: loanTypeColors[index % loanTypeColors.length],
+    })) ?? [];
+
+  const monthlyTrendData =
+    summary?.monthlyDisbursementTrend.map((item) => ({
+      month: item.month,
+      amount: item.amount,
+    })) ?? [];
+
+  const hasStatusData = applicationStatusData.some((item) => item.value > 0);
+  const hasLoanTypeData = loanTypeDistributionData.some((item) => item.value > 0);
+  const hasTrendData = monthlyTrendData.some((item) => item.amount > 0);
+
+  const renderChartLoadingState = () => (
+    <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+      <Loader2 className="w-6 h-6 animate-spin mb-2" />
+      Loading chart...
+    </div>
+  );
+
+  const renderChartEmptyState = (message: string) => (
+    <div className="py-12 text-center text-muted-foreground">{message}</div>
+  );
 
   return (
     <AdminLayout>
@@ -51,6 +160,12 @@ const AdminDashboard = () => {
             New Application
           </Button>
         </div>
+
+        {error && (
+          <Alert variant="destructive">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
 
         {/* AI-Powered Insights */}
         <Card className="border-purple-200 bg-blue-50">
@@ -75,69 +190,50 @@ const AdminDashboard = () => {
 
         {/* Date Filters */}
         <div className="flex gap-2">
-          <Button
-            variant={selectedPeriod === "today" ? "default" : "outline"}
-            size="sm"
-            onClick={() => setSelectedPeriod("today")}
-          >
-            Today
-          </Button>
-          <Button
-            variant={selectedPeriod === "week" ? "default" : "outline"}
-            size="sm"
-            onClick={() => setSelectedPeriod("week")}
-          >
-            Last 7 Days
-          </Button>
-          <Button
-            variant={selectedPeriod === "month" ? "default" : "outline"}
-            size="sm"
-            onClick={() => setSelectedPeriod("month")}
-          >
-            This Month
-          </Button>
+          {periodOptions.map((option) => (
+            <Button
+              key={option.key}
+              variant={selectedPeriod === option.key ? "default" : "outline"}
+              size="sm"
+              onClick={() => setSelectedPeriod(option.key)}
+            >
+              {option.label}
+            </Button>
+          ))}
         </div>
 
         {/* Key Metrics Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Total New Applications</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-primary">4</div>
-              <div className="flex items-center gap-1 text-sm text-green-600 mt-1">
-                <TrendingUp className="w-4 h-4" />
-                <span>+8.7%</span>
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Total Disbursed</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-primary">₦27,800,000</div>
-              <div className="flex items-center gap-1 text-sm text-green-600 mt-1">
-                <TrendingUp className="w-4 h-4" />
-                <span>+12.1%</span>
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Total Outstanding</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-primary">₦21,099,715</div>
-              <div className="flex items-center gap-1 text-sm text-green-600 mt-1">
-                <TrendingUp className="w-4 h-4" />
-                <span>+5.4%</span>
-              </div>
-            </CardContent>
-          </Card>
+          {metrics.map((metric) => {
+            const change = typeof metric.change === "number" ? metric.change : undefined;
+            const changePositive = (change ?? 0) >= 0;
+            return (
+              <Card key={metric.label}>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">{metric.label}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-3xl font-bold text-primary min-h-[40px] flex items-center">
+                    {loading && !summary ? (
+                      <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+                    ) : metric.isCurrency ? (
+                      formatCurrency(metric.value, metric.precision)
+                    ) : (
+                      metric.value ?? "--"
+                    )}
+                  </div>
+                  <div
+                    className={`flex items-center gap-1 text-sm mt-1 ${
+                      changePositive ? "text-green-600" : "text-red-500"
+                    }`}
+                  >
+                    <TrendingUp className={`w-4 h-4 ${changePositive ? "" : "rotate-180"}`} />
+                    <span>{formatChange(metric.change)}</span>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
 
         {/* Charts */}
@@ -147,19 +243,25 @@ const AdminDashboard = () => {
               <CardTitle>Loan Application Status</CardTitle>
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={applicationStatusData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" />
-                  <YAxis domain={[0, 1]} tickFormatter={(value) => value.toFixed(2)} />
-                  <Tooltip />
-                  <Bar dataKey="value" radius={[8, 8, 0, 0]}>
-                    {applicationStatusData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.fill} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
+              {loading ? (
+                renderChartLoadingState()
+              ) : hasStatusData ? (
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={applicationStatusData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="name" />
+                    <YAxis allowDecimals={false} />
+                    <Tooltip />
+                    <Bar dataKey="value" radius={[8, 8, 0, 0]}>
+                      {applicationStatusData.map((entry, index) => (
+                        <Cell key={`status-cell-${index}`} fill={entry.fill} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                renderChartEmptyState("No loan application status data for this period.")
+              )}
             </CardContent>
           </Card>
 
@@ -168,30 +270,32 @@ const AdminDashboard = () => {
               <CardTitle>Loan Type Distribution</CardTitle>
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <PieChart>
-                  <Pie
-                    data={loanTypeDistributionData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={60}
-                    outerRadius={100}
-                    paddingAngle={5}
-                    dataKey="value"
-                    label={({ percent }) => `${(percent * 100).toFixed(0)}%`}
-                  >
-                    {loanTypeDistributionData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.fill} />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                  <Legend 
-                    verticalAlign="bottom" 
-                    height={36}
-                    formatter={(value) => value}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
+              {loading ? (
+                renderChartLoadingState()
+              ) : hasLoanTypeData ? (
+                <ResponsiveContainer width="100%" height={300}>
+                  <PieChart>
+                    <Pie
+                      data={loanTypeDistributionData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={60}
+                      outerRadius={100}
+                      paddingAngle={5}
+                      dataKey="value"
+                      label={({ percent }) => `${(percent * 100).toFixed(0)}%`}
+                    >
+                      {loanTypeDistributionData.map((entry, index) => (
+                        <Cell key={`loan-type-${index}`} fill={entry.fill} />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                    <Legend verticalAlign="bottom" height={36} />
+                  </PieChart>
+                </ResponsiveContainer>
+              ) : (
+                renderChartEmptyState("No loan type distribution data for this period.")
+              )}
             </CardContent>
           </Card>
         </div>
@@ -202,36 +306,42 @@ const AdminDashboard = () => {
             <CardTitle>Monthly Disbursement Trend</CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <AreaChart data={monthlyTrendData}>
-                <defs>
-                  <linearGradient id="colorDisbursement" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#1E3A8A" stopOpacity={0.8}/>
-                    <stop offset="95%" stopColor="#1E3A8A" stopOpacity={0}/>
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="month" />
-                <YAxis 
-                  tickFormatter={(value) => {
-                    if (value >= 1000000) return `₦${value / 1000000}M`;
-                    if (value >= 1000) return `₦${value / 1000}M`;
-                    return `₦${value}M`;
-                  }}
-                />
-                <Tooltip 
-                  formatter={(value: number) => `₦${value}M`}
-                />
-                <Area 
-                  type="monotone" 
-                  dataKey="amount" 
-                  stroke="#1E3A8A" 
-                  fillOpacity={1} 
-                  fill="url(#colorDisbursement)" 
-                  strokeWidth={2}
-                />
-              </AreaChart>
-            </ResponsiveContainer>
+            {loading ? (
+              renderChartLoadingState()
+            ) : hasTrendData ? (
+              <ResponsiveContainer width="100%" height={300}>
+                <AreaChart data={monthlyTrendData}>
+                  <defs>
+                    <linearGradient id="colorDisbursement" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#1E3A8A" stopOpacity={0.8}/>
+                      <stop offset="95%" stopColor="#1E3A8A" stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="month" />
+                  <YAxis 
+                    tickFormatter={(value) => {
+                      if (value >= 1000000) return `₦${(value / 1000000).toFixed(1)}M`;
+                      if (value >= 1000) return `₦${(value / 1000).toFixed(0)}K`;
+                      return `₦${value}`;
+                    }}
+                  />
+                  <Tooltip 
+                    formatter={(value: number) => formatCurrency(value, 2)}
+                  />
+                  <Area 
+                    type="monotone" 
+                    dataKey="amount" 
+                    stroke="#1E3A8A" 
+                    fillOpacity={1} 
+                    fill="url(#colorDisbursement)" 
+                    strokeWidth={2}
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            ) : (
+              renderChartEmptyState("No disbursement data available for this period.")
+            )}
           </CardContent>
         </Card>
 

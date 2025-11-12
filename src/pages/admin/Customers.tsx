@@ -1,11 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Search, Plus, Download, MoreVertical, Loader2 } from "lucide-react";
+import { Search, Download, MoreVertical, Loader2 } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -14,20 +14,22 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { adminApi, AdminUserStats } from "@/services/api";
-
-const customers = [
-  { name: "Adewale Adeyemi", account: "3090XXXXX", email: "adewale.a@email.com", registered: "12 Jan 2023", status: "Active Loan" },
-  { name: "Ngozi Okonkwo", account: "3091XXXXX", email: "ngozi.o@email.com", registered: "15 Feb 2023", status: "No Loan" },
-  { name: "Emeka Nwosu", account: "3092XXXXX", email: "emeka.n@email.com", registered: "21 Mar 2023", status: "Overdue" },
-  { name: "Fatima Bello", account: "3093XXXXX", email: "fatima.b@email.com", registered: "05 Apr 2023", status: "No Loan" },
-  { name: "Chinedu Eze", account: "3094XXXXX", email: "chinedu.e@email.com", registered: "18 May 2023", status: "Active Loan" },
-];
+import { adminApi, AdminUserStats, AdminUser } from "@/services/api";
 
 const AdminCustomers = () => {
   const [userStats, setUserStats] = useState<AdminUserStats | null>(null);
   const [statsLoading, setStatsLoading] = useState(true);
   const [statsError, setStatsError] = useState<string | null>(null);
+  const [users, setUsers] = useState<AdminUser[]>([]);
+  const [tableLoading, setTableLoading] = useState(true);
+  const [tableError, setTableError] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [sortBy, setSortBy] = useState("registered");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const [selectedUsers, setSelectedUsers] = useState<Set<string>>(new Set());
+  const pageSize = 10;
 
   useEffect(() => {
     const loadStats = async () => {
@@ -51,6 +53,30 @@ const AdminCustomers = () => {
     loadStats();
   }, []);
 
+  useEffect(() => {
+    const loadUsers = async () => {
+      try {
+        setTableLoading(true);
+        setTableError(null);
+        const response = await adminApi.getUsers({ page: currentPage, pageSize });
+        if (response.success) {
+          setUsers(response.data || []);
+          setTotalCount(response.totalCount || 0);
+          setSelectedUsers(new Set());
+        } else {
+          setTableError(response.message || "Unable to fetch customers.");
+        }
+      } catch (error) {
+        console.error("Failed to load users:", error);
+        setTableError("Failed to load customers. Please try again.");
+      } finally {
+        setTableLoading(false);
+      }
+    };
+
+    loadUsers();
+  }, [currentPage, pageSize]);
+
   const formatCurrency = (amount?: number) => {
     if (typeof amount !== "number") return "--";
     return new Intl.NumberFormat("en-NG", {
@@ -59,6 +85,108 @@ const AdminCustomers = () => {
       maximumFractionDigits: 0,
     }).format(amount);
   };
+
+  const formatDate = (dateString?: string) => {
+    if (!dateString) return "--";
+    return new Date(dateString).toLocaleDateString("en-GB", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
+  };
+
+  const normalizeLoanStatus = (status?: string) =>
+    status?.toLowerCase().replace(/\s+/g, "") || "";
+
+  const processedUsers = useMemo(() => {
+    const term = searchTerm.trim().toLowerCase();
+    const filtered = users.filter((user) => {
+      const matchesSearch =
+        !term ||
+        [user.fullName, user.email, user.accountNumber]
+          .filter(Boolean)
+          .some((value) => value!.toLowerCase().includes(term));
+
+      const normalizedStatus = normalizeLoanStatus(user.loanStatus);
+      const matchesStatus =
+        statusFilter === "all" ||
+        (statusFilter === "active" && normalizedStatus === "activeloan") ||
+        (statusFilter === "none" && normalizedStatus === "noloan") ||
+        (statusFilter === "overdue" && normalizedStatus === "overdue");
+
+      return matchesSearch && matchesStatus;
+    });
+
+    return filtered.sort((a, b) => {
+      if (sortBy === "name") {
+        return a.fullName.localeCompare(b.fullName);
+      }
+      if (sortBy === "status") {
+        return normalizeLoanStatus(a.loanStatus).localeCompare(
+          normalizeLoanStatus(b.loanStatus)
+        );
+      }
+      return (
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
+    });
+  }, [users, searchTerm, statusFilter, sortBy]);
+
+  const toggleSelectAll = () => {
+    if (processedUsers.length === 0) {
+      setSelectedUsers(new Set());
+      return;
+    }
+
+    if (selectedUsers.size === processedUsers.length) {
+      setSelectedUsers(new Set());
+    } else {
+      setSelectedUsers(new Set(processedUsers.map((user) => user.id)));
+    }
+  };
+
+  const toggleSelectUser = (id: string) => {
+    setSelectedUsers((prev) => {
+      const updated = new Set(prev);
+      if (updated.has(id)) {
+        updated.delete(id);
+      } else {
+        updated.add(id);
+      }
+      return updated;
+    });
+  };
+
+  const getLoanStatusProps = (status?: string) => {
+    const normalized = normalizeLoanStatus(status);
+    if (normalized === "overdue") {
+      return {
+        variant: "destructive" as const,
+        className: "bg-yellow-500 hover:bg-yellow-600 text-white",
+      };
+    }
+    if (normalized === "activeloan") {
+      return {
+        variant: "default" as const,
+        className: "bg-blue-600 hover:bg-blue-700",
+      };
+    }
+    if (normalized === "noloan") {
+      return {
+        variant: "outline" as const,
+        className: "border-slate-200 bg-slate-100 text-slate-700",
+      };
+    }
+    return { variant: "secondary" as const, className: "" };
+  };
+
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+  const showingStart =
+    totalCount === 0 ? 0 : (currentPage - 1) * pageSize + 1;
+  const showingEnd =
+    totalCount === 0
+      ? 0
+      : Math.min(showingStart + users.length - 1, totalCount);
 
   const statsCards = [
     {
@@ -91,10 +219,6 @@ const AdminCustomers = () => {
             <h1 className="text-3xl font-bold">Customers</h1>
             <p className="text-muted-foreground">View all registered users and their loan history.</p>
           </div>
-          <Button className="gap-2">
-            <Plus className="w-4 h-4" />
-            Add New Customer
-          </Button>
         </div>
 
         {statsError && (
@@ -131,10 +255,12 @@ const AdminCustomers = () => {
                 <Input 
                   placeholder="Search by name, account number, or email..." 
                   className="pl-10"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
                 />
               </div>
               <div className="flex gap-2">
-                <Select defaultValue="all">
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
                   <SelectTrigger className="w-[140px]">
                     <SelectValue placeholder="Status: All" />
                   </SelectTrigger>
@@ -145,7 +271,7 @@ const AdminCustomers = () => {
                     <SelectItem value="overdue">Overdue</SelectItem>
                   </SelectContent>
                 </Select>
-                <Select defaultValue="registered">
+                <Select value={sortBy} onValueChange={setSortBy}>
                   <SelectTrigger className="w-[180px]">
                     <SelectValue placeholder="Sort By" />
                   </SelectTrigger>
@@ -163,68 +289,141 @@ const AdminCustomers = () => {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b">
-                    <th className="text-left py-3 px-4">
-                      <Checkbox />
-                    </th>
-                    <th className="text-left py-3 px-4 font-medium">Customer Name</th>
-                    <th className="text-left py-3 px-4 font-medium">Account Number</th>
-                    <th className="text-left py-3 px-4 font-medium">Email Address</th>
-                    <th className="text-left py-3 px-4 font-medium">Date Registered</th>
-                    <th className="text-left py-3 px-4 font-medium">Loan Status</th>
-                    <th className="text-left py-3 px-4 font-medium">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {customers.map((customer, index) => (
-                    <tr key={index} className="border-b hover:bg-muted/50">
-                      <td className="py-3 px-4">
-                        <Checkbox />
-                      </td>
-                      <td className="py-3 px-4 font-medium text-primary">{customer.name}</td>
-                      <td className="py-3 px-4 text-primary">{customer.account}</td>
-                      <td className="py-3 px-4 text-primary">{customer.email}</td>
-                      <td className="py-3 px-4">{customer.registered}</td>
-                      <td className="py-3 px-4">
-                        <Badge 
-                          variant={
-                            customer.status === "Active Loan" ? "default" : 
-                            customer.status === "Overdue" ? "destructive" : 
-                            "secondary"
-                          }
-                          className={
-                            customer.status === "Overdue" ? "bg-yellow-500 hover:bg-yellow-600" : ""
-                          }
-                        >
-                          {customer.status}
-                        </Badge>
-                      </td>
-                      <td className="py-3 px-4">
-                        <Button variant="ghost" size="icon">
-                          <MoreVertical className="w-4 h-4" />
-                        </Button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            
-            <div className="flex items-center justify-between mt-4">
-              <p className="text-sm text-muted-foreground">Showing 1 to 5 of 97 results</p>
-              <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm">&lt;</Button>
-                <Button size="sm">1</Button>
-                <Button variant="outline" size="sm">2</Button>
-                <Button variant="outline" size="sm">3</Button>
-                <Button variant="outline" size="sm">...</Button>
-                <Button variant="outline" size="sm">20</Button>
-                <Button variant="outline" size="sm">&gt;</Button>
+            {tableError && !tableLoading && (
+              <Alert variant="destructive" className="mb-4">
+                <AlertDescription>{tableError}</AlertDescription>
+              </Alert>
+            )}
+
+            {tableLoading ? (
+              <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+                <Loader2 className="w-6 h-6 animate-spin mb-2" />
+                Loading customers...
               </div>
-            </div>
+            ) : processedUsers.length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground">
+                No customers match the current filters.
+              </div>
+            ) : (
+              <>
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b">
+                        <th className="text-left py-3 px-4">
+                          <Checkbox 
+                            checked={
+                              processedUsers.length > 0 &&
+                              selectedUsers.size === processedUsers.length
+                            }
+                            onCheckedChange={toggleSelectAll}
+                          />
+                        </th>
+                        <th className="text-left py-3 px-4 font-medium">Customer Name</th>
+                        <th className="text-left py-3 px-4 font-medium">Account Number</th>
+                        <th className="text-left py-3 px-4 font-medium">Email Address</th>
+                        <th className="text-left py-3 px-4 font-medium">Date Registered</th>
+                        <th className="text-left py-3 px-4 font-medium">Loan Status</th>
+                        <th className="text-left py-3 px-4 font-medium">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {processedUsers.map((customer) => {
+                        const { variant, className } = getLoanStatusProps(customer.loanStatus);
+                        return (
+                          <tr key={customer.id} className="border-b hover:bg-muted/50">
+                            <td className="py-3 px-4">
+                              <Checkbox 
+                                checked={selectedUsers.has(customer.id)}
+                                onCheckedChange={() => toggleSelectUser(customer.id)}
+                              />
+                            </td>
+                            <td className="py-3 px-4 font-medium text-primary">{customer.fullName}</td>
+                            <td className="py-3 px-4 text-primary">{customer.accountNumber || "--"}</td>
+                            <td className="py-3 px-4 text-primary">{customer.email}</td>
+                            <td className="py-3 px-4">{formatDate(customer.createdAt)}</td>
+                            <td className="py-3 px-4">
+                              <Badge variant={variant} className={className}>
+                                {customer.loanStatus || "No Loan"}
+                              </Badge>
+                            </td>
+                            <td className="py-3 px-4">
+                              <Button variant="ghost" size="icon">
+                                <MoreVertical className="w-4 h-4" />
+                              </Button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+                
+                <div className="flex items-center justify-between mt-4">
+                  <p className="text-sm text-muted-foreground">
+                    {totalCount === 0
+                      ? "No results"
+                      : `Showing ${showingStart} to ${showingEnd} of ${totalCount} results`}
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                      disabled={currentPage === 1}
+                    >
+                      &lt;
+                    </Button>
+                    
+                    {[...Array(Math.min(totalPages, 5))].map((_, idx) => {
+                      let pageNum;
+                      if (totalPages <= 5) {
+                        pageNum = idx + 1;
+                      } else if (currentPage <= 3) {
+                        pageNum = idx + 1;
+                      } else if (currentPage >= totalPages - 2) {
+                        pageNum = totalPages - 4 + idx;
+                      } else {
+                        pageNum = currentPage - 2 + idx;
+                      }
+                      
+                      return (
+                        <Button
+                          key={pageNum}
+                          size="sm"
+                          variant={currentPage === pageNum ? "default" : "outline"}
+                          onClick={() => setCurrentPage(pageNum)}
+                        >
+                          {pageNum}
+                        </Button>
+                      );
+                    })}
+                    
+                    {totalPages > 5 && currentPage < totalPages - 2 && (
+                      <>
+                        <span className="px-2">...</span>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setCurrentPage(totalPages)}
+                        >
+                          {totalPages}
+                        </Button>
+                      </>
+                    )}
+                    
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                      disabled={currentPage === totalPages}
+                    >
+                      &gt;
+                    </Button>
+                  </div>
+                </div>
+              </>
+            )}
           </CardContent>
         </Card>
       </div>
