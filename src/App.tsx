@@ -20,6 +20,7 @@ import AdminRisk from "./pages/admin/Risk";
 import AdminSettings from "./pages/admin/Settings";
 import CustomerDashboard from "./pages/customer/Dashboard";
 import CustomerLoans from "./pages/customer/MyLoans";
+import MyLoansDetails from "./pages/customer/MyLoansDetail";
 import CustomerHistory from "./pages/customer/PaymentHistory";
 import CustomerProfile from "./pages/customer/Profile";
 import CustomerSupport from "./pages/customer/Support";
@@ -143,6 +144,14 @@ const App = () => (
               element={
                 <ProtectedRoute allowedUserTypes={["customer"]}>
                   <CustomerLoans />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/customer/loan-details/:id"
+              element={
+                <ProtectedRoute allowedUserTypes={['customer']}>
+                  <MyLoansDetails />
                 </ProtectedRoute>
               }
             />

@@ -25,4 +25,4 @@ A modern web application for loan management, built with React, TypeScript, and 
 
 ### Prerequisites
 - dotnet & C# Dev Kit installed
-- Backend running on `http://localhost:5128`
+- Backend running on `http://localhost:7102`
