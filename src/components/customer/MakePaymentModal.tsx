@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,6 +14,7 @@ interface MakePaymentModalProps {
   loanId: string;
   loanAccount?: string;
   outstandingBalance: number;
+  monthlyPayment?: number;
   onSuccess?: () => void;
 }
 
@@ -23,12 +24,24 @@ export function MakePaymentModal({
   loanId,
   loanAccount = "",
   outstandingBalance = 0,
+  monthlyPayment = 0,
   onSuccess,
 }: MakePaymentModalProps) {
   const { toast } = useToast();
   const [paymentAmount, setPaymentAmount] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Prefill with monthly payment when modal opens
+  useEffect(() => {
+    if (open && monthlyPayment > 0) {
+      setPaymentAmount(monthlyPayment.toString());
+    } else if (!open) {
+      // Reset when modal closes
+      setPaymentAmount("");
+      setError(null);
+    }
+  }, [open, monthlyPayment]);
 
   const handleConfirmPayment = async () => {
     const amount = parseFloat(paymentAmount.replace(/[₦,]/g, ""));
@@ -53,10 +66,17 @@ export function MakePaymentModal({
     setError(null);
 
     try {
+      // Get the current origin for callback URLs
+      const baseUrl = window.location.origin;
+      const callbackUrl = `${baseUrl}/customer/payment-success`;
+      const cancelUrl = `${baseUrl}/customer/payment-failed`;
+      
       // Initialize payment with Paystack
       const response = await paymentApi.initializePayment({
         loanId,
         amount,
+        callbackUrl,
+        cancelUrl,
       });
 
       if (response.success && response.data) {
@@ -85,16 +105,17 @@ export function MakePaymentModal({
   };
 
   const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    // Only allow numbers and one decimal point
     const value = e.target.value.replace(/[^0-9.]/g, "");
+    
+    // Prevent multiple decimal points
+    const parts = value.split(".");
+    if (parts.length > 2) {
+      return;
+    }
+    
     setPaymentAmount(value);
     setError(null);
-  };
-
-  const formatAmount = (value: string) => {
-    if (!value) return "";
-    const numValue = parseFloat(value);
-    if (isNaN(numValue)) return value;
-    return `₦${numValue.toLocaleString("en-NG", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
 
   const handleQuickAmount = (percentage: number) => {
@@ -145,13 +166,15 @@ export function MakePaymentModal({
               Payment Amount <span className="text-red-500">*</span>
             </Label>
             <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-lg font-semibold text-muted-foreground">₦</span>
               <Input
                 id="paymentAmount"
                 type="text"
-                placeholder="₦0.00"
-                value={formatAmount(paymentAmount)}
+                inputMode="decimal"
+                placeholder="0.00"
+                value={paymentAmount}
                 onChange={handleAmountChange}
-                className="pl-2 text-lg font-semibold"
+                className="pl-8 text-lg font-semibold"
                 disabled={isProcessing}
               />
             </div>

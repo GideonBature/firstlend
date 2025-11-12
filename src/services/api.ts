@@ -643,6 +643,8 @@ export const adminApi = {
 interface InitiatePaymentRequest {
   loanId: string;
   amount: number;
+  callbackUrl?: string;
+  cancelUrl?: string;
 }
 
 interface InitiatePaymentResponse {

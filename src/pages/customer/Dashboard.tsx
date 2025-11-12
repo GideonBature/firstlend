@@ -9,20 +9,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart, PieChart, Pie, Cell } from "recharts";
 import { DollarSign, TrendingUp, Calendar, Lightbulb, X, Brain, Handshake, Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import { authApi } from "@/services/api";
-
-const paymentTrendData = [
-  { month: "Jan", amount: 0 },
-  { month: "Feb", amount: 100 },
-  { month: "Mar", amount: 150 },
-  { month: "Apr", amount: 200 },
-  { month: "May", amount: 250 },
-  { month: "Jun", amount: 300 },
-  { month: "Jul", amount: 280 },
-  { month: "Aug", amount: 320 },
-  { month: "Sep", amount: 350 },
-  { month: "Oct", amount: 400 },
-];
+import { authApi, loanApi, paymentApi } from "@/services/api";
+import type { LoanResponse, PaymentHistoryRecord } from "@/services/api";
 
 const creditScoreTrendData = [
   { month: "Jan", score: 695 },
@@ -37,14 +25,6 @@ const creditScoreTrendData = [
   { month: "Oct", score: 720 },
 ];
 
-const recentTransactions = [
-  { date: "2024-09-25", type: "Repayment", amount: "₦180,238", status: "Successful" },
-  { date: "2024-09-25", type: "Repayment", amount: "₦180,238", status: "Successful" },
-  { date: "2024-10-30", type: "Repayment", amount: "₦232,285", status: "Successful" },
-  { date: "2024-10-26", type: "Repayment", amount: "₦23,154", status: "Successful" },
-  { date: "2024-10-10", type: "Repayment", amount: "₦9,156", status: "Failed" },
-];
-
 const CustomerDashboard = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -53,6 +33,13 @@ const CustomerDashboard = () => {
   const [isLoadingCreditScore, setIsLoadingCreditScore] = useState(true);
   const [totalAccounts, setTotalAccounts] = useState<number>(0);
   const [scoreBreakdown, setScoreBreakdown] = useState<any>(null);
+  
+  // New state for dynamic dashboard data
+  const [loans, setLoans] = useState<LoanResponse[]>([]);
+  const [paymentHistory, setPaymentHistory] = useState<PaymentHistoryRecord[]>([]);
+  const [isLoadingLoans, setIsLoadingLoans] = useState(true);
+  const [isLoadingPayments, setIsLoadingPayments] = useState(true);
+  const [onTimePayments, setOnTimePayments] = useState(0);
   
   const userFirstName = useMemo(() => {
     if (!user?.fullName) {
@@ -83,6 +70,40 @@ const CustomerDashboard = () => {
     };
 
     fetchCreditScore();
+  }, []);
+
+  // Fetch loans and payment history
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        // Fetch loans
+        setIsLoadingLoans(true);
+        const loansResponse = await loanApi.getMyLoans({ page: 1, pageSize: 100 });
+        if (loansResponse.success && loansResponse.data) {
+          setLoans(loansResponse.data);
+        }
+
+        // Fetch payment history
+        setIsLoadingPayments(true);
+        const paymentsResponse = await paymentApi.getPaymentHistory({ page: 1, pageSize: 100 });
+        if (paymentsResponse.success && paymentsResponse.data) {
+          setPaymentHistory(paymentsResponse.data);
+          
+          // Count on-time payments
+          const successfulPayments = paymentsResponse.data.filter(p => 
+            p.status?.toLowerCase() === 'successful' || p.status?.toLowerCase() === 'completed'
+          ).length;
+          setOnTimePayments(successfulPayments);
+        }
+      } catch (error) {
+        console.error("Error fetching dashboard data:", error);
+      } finally {
+        setIsLoadingLoans(false);
+        setIsLoadingPayments(false);
+      }
+    };
+
+    fetchDashboardData();
   }, []);
 
   // Get color based on credit rating
@@ -117,6 +138,155 @@ const CustomerDashboard = () => {
         return 'bg-gray-500 hover:bg-gray-600';
     }
   };
+
+  // Calculate dashboard metrics from loans
+  const activeLoanBalance = useMemo(() => {
+    return loans
+      .filter(loan => loan.status.toLowerCase() === 'active')
+      .reduce((sum, loan) => sum + (loan.outstandingBalance || 0), 0);
+  }, [loans]);
+
+  const totalRepaidAmount = useMemo(() => {
+    return loans.reduce((sum, loan) => {
+      const totalAmount = loan.principal || 0;
+      const amountPaid = totalAmount - (loan.outstandingBalance || 0);
+      return sum + Math.max(0, amountPaid);
+    }, 0);
+  }, [loans]);
+
+  const nextPaymentAmount = useMemo(() => {
+    const activeLoans = loans.filter(loan => loan.status.toLowerCase() === 'active');
+    if (activeLoans.length === 0) return 0;
+    
+    // Get the first active loan's next payment
+    const firstActiveLoan = activeLoans[0];
+    return firstActiveLoan.amountDue / firstActiveLoan.term;
+  }, [loans]);
+
+  const nextPaymentDate = useMemo(() => {
+    const activeLoans = loans.filter(loan => loan.status.toLowerCase() === 'active');
+    if (activeLoans.length === 0) return 'N/A';
+    
+    return activeLoans[0].nextPaymentDate 
+      ? new Date(activeLoans[0].nextPaymentDate).toLocaleDateString()
+      : 'N/A';
+  }, [loans]);
+
+  const isNextPaymentPaid = useMemo(() => {
+    if (loans.length === 0) return false;
+    
+    const activeLoans = loans.filter(loan => loan.status.toLowerCase() === 'active');
+    if (activeLoans.length === 0) return false;
+    
+    // Check if there are any recent successful payments
+    const recentPayments = paymentHistory.filter(p => 
+      (p.status?.toLowerCase() === 'successful' || p.status?.toLowerCase() === 'completed') &&
+      p.loanId === activeLoans[0].id
+    );
+    
+    return recentPayments.length > 0;
+  }, [loans, paymentHistory]);
+
+  // Get the first active loan for the Personal Loan Overview section
+  const primaryLoan = useMemo(() => {
+    return loans.find(loan => loan.status.toLowerCase() === 'active');
+  }, [loans]);
+
+  // Calculate loan progress percentage
+  const loanProgressPercentage = useMemo(() => {
+    if (!primaryLoan) return 0;
+    
+    const principal = primaryLoan.principal || 0;
+    if (principal === 0) return 0;
+    
+    const outstanding = primaryLoan.outstandingBalance || 0;
+    const amountPaid = principal - outstanding;
+    const percentage = (amountPaid / principal) * 100;
+    
+    const result = Math.round(Math.max(0, Math.min(100, percentage)));
+    console.log("Progress calculation:", { principal, outstanding, amountPaid, percentage, result });
+    return result;
+  }, [primaryLoan]);
+
+  // Calculate months elapsed and remaining
+  const loanTenure = useMemo(() => {
+    if (!primaryLoan) return { elapsed: 0, total: 0 };
+    
+    const createdDate = new Date(primaryLoan.createdAt);
+    const today = new Date();
+    const elapsedMonths = Math.floor((today.getTime() - createdDate.getTime()) / (1000 * 60 * 60 * 24 * 30));
+    const totalMonths = primaryLoan.term || 0;
+    
+    return { 
+      elapsed: Math.max(0, elapsedMonths + 1),
+      total: totalMonths 
+    };
+  }, [primaryLoan]);
+
+  // Calculate dynamic payment trend data from payment history
+  const paymentTrendData = useMemo(() => {
+    const successfulPayments = paymentHistory.filter(payment => {
+      const status = payment.status?.toLowerCase();
+      return status === 'success' || status === 'successful' || status === 'completed';
+    });
+
+    if (successfulPayments.length === 0) {
+      // Return empty chart with last 10 months if no data
+      const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+      const currentDate = new Date();
+      const result = [];
+      
+      for (let i = 9; i >= 0; i--) {
+        const d = new Date(currentDate.getFullYear(), currentDate.getMonth() - i, 1);
+        const monthName = months[d.getMonth()];
+        result.push({ month: monthName, amount: 0 });
+      }
+      
+      return result;
+    }
+
+    // Group payments by month-year and calculate cumulative totals
+    const monthlyData: Record<string, { total: number, cumulative: number }> = {};
+    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    const currentDate = new Date();
+
+    // Create entries for the last 10 months
+    const result = [];
+    for (let i = 9; i >= 0; i--) {
+      const d = new Date(currentDate.getFullYear(), currentDate.getMonth() - i, 1);
+      const monthKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      monthlyData[monthKey] = { total: 0, cumulative: 0 };
+      result.push({
+        monthKey,
+        monthName: months[d.getMonth()],
+        date: d
+      });
+    }
+
+    // Add payments to their respective months
+    successfulPayments.forEach(payment => {
+      const date = new Date(payment.createdAt || '');
+      const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+      
+      if (monthlyData[monthKey]) {
+        monthlyData[monthKey].total += payment.amount || 0;
+      }
+    });
+
+    // Calculate cumulative amounts
+    let cumulative = 0;
+    const chartData = result.map(item => {
+      const monthData = monthlyData[item.monthKey];
+      cumulative += monthData.total;
+      return {
+        month: item.monthName,
+        amount: Math.round(cumulative)
+      };
+    });
+
+    console.log("Payment trend data:", { successfulPayments: successfulPayments.length, chartData });
+    return chartData;
+  }, [paymentHistory]);
   
   return (
     <CustomerLayout>
@@ -128,23 +298,25 @@ const CustomerDashboard = () => {
         </div>
 
         {/* Alert Banner */}
-        <Card className="border-yellow-200 bg-yellow-50">
-          <CardContent className="p-4">
-            <div className="flex items-start justify-between gap-4">
-              <div className="flex items-start gap-3">
-                <Lightbulb className="w-5 h-5 text-yellow-600 mt-0.5" />
-                <div>
-                  <p className="font-semibold text-sm">
-                    Excellent Payment Record! You've made 6 on-time payments. Keep it up to improve your credit score!
-                  </p>
+        {onTimePayments > 0 && (
+          <Card className="border-yellow-200 bg-yellow-50">
+            <CardContent className="p-4">
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex items-start gap-3">
+                  <Lightbulb className="w-5 h-5 text-yellow-600 mt-0.5" />
+                  <div>
+                    <p className="font-semibold text-sm">
+                      Excellent Payment Record! You've made {onTimePayments} on-time payment{onTimePayments !== 1 ? 's' : ''}. Keep it up to improve your credit score!
+                    </p>
+                  </div>
                 </div>
+                <Button variant="ghost" size="icon" className="h-8 w-8">
+                  <X className="w-4 h-4" />
+                </Button>
               </div>
-              <Button variant="ghost" size="icon" className="h-8 w-8">
-                <X className="w-4 h-4" />
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Key Metrics Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -156,8 +328,19 @@ const CustomerDashboard = () => {
               </div>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-green-600 mb-2">₦20,604,155</div>
-              <Button variant="outline" size="sm">Action</Button>
+              {isLoadingLoans ? (
+                <div className="flex items-center gap-2">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Loading...</span>
+                </div>
+              ) : (
+                <>
+                  <div className="text-3xl font-bold text-green-600 mb-2">
+                    ₦{activeLoanBalance.toLocaleString('en-NG', { maximumFractionDigits: 0 })}
+                  </div>
+                  <Button variant="outline" size="sm" onClick={() => navigate('/customer/my-loans')}>Action</Button>
+                </>
+              )}
             </CardContent>
           </Card>
 
@@ -169,7 +352,16 @@ const CustomerDashboard = () => {
               </div>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-green-600">₦8,239,104</div>
+              {isLoadingLoans ? (
+                <div className="flex items-center gap-2">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Loading...</span>
+                </div>
+              ) : (
+                <div className="text-3xl font-bold text-green-600">
+                  ₦{totalRepaidAmount.toLocaleString('en-NG', { maximumFractionDigits: 0 })}
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -181,11 +373,24 @@ const CustomerDashboard = () => {
               </div>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold mb-1">₦180,238</div>
-              <div className="flex items-center justify-between">
-                <p className="text-sm text-muted-foreground">Due: 2024-11-25</p>
-                <Badge className="bg-green-500 hover:bg-green-600 text-white">Paid</Badge>
-              </div>
+              {isLoadingLoans ? (
+                <div className="flex items-center gap-2">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Loading...</span>
+                </div>
+              ) : (
+                <>
+                  <div className="text-3xl font-bold mb-1">
+                    ₦{nextPaymentAmount.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm text-muted-foreground">Due: {nextPaymentDate}</p>
+                    <Badge className={`text-white ${isNextPaymentPaid ? 'bg-green-500 hover:bg-green-600' : 'bg-orange-500 hover:bg-orange-600'}`}>
+                      {isNextPaymentPaid ? 'Paid' : 'Due'}
+                    </Badge>
+                  </div>
+                </>
+              )}
             </CardContent>
           </Card>
         </div>
@@ -199,36 +404,58 @@ const CustomerDashboard = () => {
                 <CardTitle>Personal Loan Overview</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Loan ID</p>
-                    <p className="font-semibold">LN-001</p>
+                {isLoadingLoans ? (
+                  <div className="flex items-center justify-center py-8 gap-2">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Loading loan details...</span>
                   </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Next Payment</p>
-                    <p className="font-semibold">₦180,238</p>
+                ) : !primaryLoan ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    No active loans found
                   </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Interest Rate</p>
-                    <p className="font-semibold">15%</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Due Date</p>
-                    <p className="font-semibold">2024-11-25</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Tenure</p>
-                    <p className="font-semibold">6 of 12 months</p>
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Progress</span>
-                    <span className="font-semibold">54% Paid</span>
-                  </div>
-                  <Progress value={54} className="h-3" />
-                </div>
-                <Button className="w-full">Repay Now</Button>
+                ) : (
+                  <>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <p className="text-sm text-muted-foreground">Loan ID</p>
+                        <p className="font-semibold">LN-{primaryLoan.id.substring(0, 8)}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Next Payment</p>
+                        <p className="font-semibold">₦{nextPaymentAmount.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Interest Rate</p>
+                        <p className="font-semibold">{primaryLoan.rate}%</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Due Date</p>
+                        <p className="font-semibold">{nextPaymentDate}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Tenure</p>
+                        <p className="font-semibold">{loanTenure.elapsed} of {loanTenure.total} months</p>
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">Progress</span>
+                        <span className="font-semibold">{loanProgressPercentage}% Paid</span>
+                      </div>
+                      <Progress
+                        value={loanProgressPercentage}
+                        className="h-3 bg-muted"
+                        indicatorClassName="bg-primary"
+                      />
+                    </div>
+                    <Button 
+                      className="w-full"
+                      onClick={() => navigate('/customer/my-loans')}
+                    >
+                      Repay Now
+                    </Button>
+                  </>
+                )}
               </CardContent>
             </Card>
 
@@ -272,20 +499,63 @@ const CustomerDashboard = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {recentTransactions.map((transaction, index) => (
-                      <TableRow key={index}>
-                        <TableCell>{transaction.date}</TableCell>
-                        <TableCell>{transaction.type}</TableCell>
-                        <TableCell>{transaction.amount}</TableCell>
-                        <TableCell>
-                          {transaction.status === "Successful" ? (
-                            <Badge className="bg-green-500 hover:bg-green-600 text-white">{transaction.status}</Badge>
-                          ) : (
-                            <Badge className="bg-red-500 hover:bg-red-600 text-white">{transaction.status}</Badge>
-                          )}
+                    {isLoadingPayments ? (
+                      <TableRow>
+                        <TableCell colSpan={4} className="text-center py-8">
+                          <div className="flex items-center justify-center gap-2">
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            <span>Loading transactions...</span>
+                          </div>
                         </TableCell>
                       </TableRow>
-                    ))}
+                    ) : paymentHistory.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
+                          No transactions yet
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      paymentHistory.slice(0, 5).map((transaction, index) => {
+                        const status = (transaction.status || '').toLowerCase();
+                        const isSuccess = status === 'success' || status === 'successful' || status === 'completed';
+                        const isPending = status === 'pending';
+
+                        return (
+                          <TableRow key={index}>
+                            <TableCell>{new Date(transaction.createdAt || '').toLocaleDateString()}</TableCell>
+                            <TableCell>Repayment</TableCell>
+                            <TableCell>₦{transaction.amount?.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
+                            <TableCell>
+                              {isSuccess ? (
+                                <Badge 
+                                  variant="outline" 
+                                  className="border-emerald-200"
+                                  style={{ backgroundColor: '#d1fae5', color: '#047857' }}
+                                >
+                                  Success
+                                </Badge>
+                              ) : isPending ? (
+                                <Badge 
+                                  variant="outline" 
+                                  className="border-amber-200"
+                                  style={{ backgroundColor: '#fef3c7', color: '#b45309' }}
+                                >
+                                  Pending
+                                </Badge>
+                              ) : (
+                                <Badge 
+                                  variant="outline" 
+                                  className="border-red-200"
+                                  style={{ backgroundColor: '#fee2e2', color: '#b91c1c' }}
+                                >
+                                  {transaction.status || 'Failed'}
+                                </Badge>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })
+                    )}
                   </TableBody>
                 </Table>
               </CardContent>

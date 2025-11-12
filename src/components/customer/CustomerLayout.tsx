@@ -145,6 +145,9 @@ export function CustomerLayout({ children }: CustomerLayoutProps) {
       <MakePaymentModal
         open={paymentModalOpen}
         onOpenChange={setPaymentModalOpen}
+        loanId=""
+        outstandingBalance={0}
+        monthlyPayment={0}
         onSuccess={() => {
           // Optionally refresh data or show notification
           console.log("Payment successful!");

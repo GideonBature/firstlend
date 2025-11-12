@@ -34,14 +34,30 @@ export default function PaymentSuccess() {
         const response = await paymentApi.verifyPayment(reference);
 
         if (response.success && response.data) {
-          setPaymentVerified(true);
-          setPaymentDetails(response.data);
+          // Check if payment was actually successful
+          const status = response.data.status?.toLowerCase();
           
-          toast({
-            title: "Payment Successful!",
-            description: `Your payment of ₦${response.data.amount?.toLocaleString()} has been confirmed.`,
-            variant: "default",
-          });
+          if (status === 'success' || status === 'successful') {
+            setPaymentVerified(true);
+            setPaymentDetails(response.data);
+            
+            toast({
+              title: "Payment Successful!",
+              description: `Your payment of ₦${response.data.amount?.toLocaleString()} has been confirmed.`,
+              variant: "default",
+            });
+          } else if (status === 'failed' || status === 'declined') {
+            // Payment failed - redirect to failure page
+            navigate(`/customer/payment-failed?reference=${reference}&message=${encodeURIComponent(response.message || 'Payment was declined')}`);
+            return;
+          } else {
+            setError(response.message || "Payment verification failed");
+            toast({
+              title: "Verification Failed",
+              description: response.message || "Could not verify your payment",
+              variant: "destructive",
+            });
+          }
         } else {
           setError(response.message || "Payment verification failed");
           toast({
@@ -65,7 +81,7 @@ export default function PaymentSuccess() {
     };
 
     verifyPayment();
-  }, [searchParams, toast]);
+  }, [searchParams, toast, navigate]);
 
   // Auto-redirect countdown
   useEffect(() => {

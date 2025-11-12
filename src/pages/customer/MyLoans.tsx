@@ -72,11 +72,44 @@ const getProgressIndicatorClass = (status: string) => {
   return "bg-primary";
 };
 
+// Calculate current amount due based on payment schedule
+const calculateCurrentAmountDue = (loan: LoanResponse) => {
+  // For non-active loans, return 0
+  if (!["active", "overdue"].includes(loan.status.toLowerCase())) {
+    return 0;
+  }
+
+  // Calculate total amount to be repaid (with interest)
+  const totalAmount = loan.amountDue;
+  
+  // Calculate monthly installment
+  const monthlyInstallment = totalAmount / loan.term;
+  
+  // Calculate how many months have passed since loan creation
+  const loanStartDate = new Date(loan.createdAt);
+  const today = new Date();
+  const monthsPassed = Math.floor((today.getTime() - loanStartDate.getTime()) / (1000 * 60 * 60 * 24 * 30));
+  
+  // Calculate how many installments should have been paid by now
+  const installmentsDue = Math.min(monthsPassed + 1, loan.term);
+  
+  // Calculate total that should have been paid
+  const totalShouldBePaid = monthlyInstallment * installmentsDue;
+  
+  // Calculate actual amount paid (total - outstanding)
+  const amountPaid = totalAmount - loan.outstandingBalance;
+  
+  // Current amount due is the difference
+  const currentDue = Math.max(0, totalShouldBePaid - amountPaid);
+  
+  return currentDue;
+};
+
 const MyLoans = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
-  const [selectedLoan, setSelectedLoan] = useState<{ id: string; outstanding: number } | null>(null);
+  const [selectedLoan, setSelectedLoan] = useState<{ id: string; outstanding: number; monthlyPayment: number } | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [loans, setLoans] = useState<LoanResponse[]>([]);
   const [loading, setLoading] = useState(true);
@@ -121,9 +154,17 @@ const MyLoans = () => {
   }, [currentPage, toast]);
 
   const handleMakePayment = (loan: LoanResponse) => {
+    // Calculate current amount due (what customer should pay now)
+    const currentDue = calculateCurrentAmountDue(loan);
+    
+    // Use the current amount due, or fall back to monthly installment if currentDue is 0
+    const monthlyPayment = loan.amountDue / loan.term;
+    const paymentAmount = currentDue > 0 ? currentDue : monthlyPayment;
+    
     setSelectedLoan({
       id: loan.id,
       outstanding: loan.outstandingBalance,
+      monthlyPayment: paymentAmount,
     });
     setPaymentModalOpen(true);
   };
@@ -227,6 +268,7 @@ const MyLoans = () => {
                   ) : (
                     filteredLoans.map((loan) => {
                       const progressValue = getProgressValue(loan);
+                      const currentAmountDue = calculateCurrentAmountDue(loan);
                       const nextPaymentDate = loan.nextPaymentDate
                         ? new Date(loan.nextPaymentDate).toLocaleDateString()
                         : "N/A";
@@ -272,15 +314,19 @@ const MyLoans = () => {
                                 <p>
                                   Term: <span className="font-semibold text-foreground">{loan.term} months</span>
                                 </p>
-                                <p>
-                                  Outstanding: <span className="font-semibold text-foreground">₦{loan.outstandingBalance.toLocaleString("en-NG", { maximumFractionDigits: 2 })}</span>
-                                </p>
-                                <p>
-                                  Amount Due: <span className="font-semibold text-foreground">₦{loan.amountDue.toLocaleString("en-NG", { maximumFractionDigits: 2 })}</span>
-                                </p>
-                                <p>
-                                  Next Payment: <span className="font-semibold text-foreground">{nextPaymentDate}</span>
-                                </p>
+                                {loan.status.toLowerCase() !== "rejected" && (
+                                  <>
+                                    <p>
+                                      Outstanding: <span className="font-semibold text-foreground">₦{loan.outstandingBalance.toLocaleString("en-NG", { maximumFractionDigits: 2 })}</span>
+                                    </p>
+                                    <p>
+                                      Amount Due: <span className={`font-semibold ${currentAmountDue > 0 ? 'text-orange-600' : 'text-green-600'}`}>₦{currentAmountDue.toLocaleString("en-NG", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                    </p>
+                                    <p>
+                                      Next Payment: <span className="font-semibold text-foreground">{nextPaymentDate}</span>
+                                    </p>
+                                  </>
+                                )}
                                 <p>
                                   Created: <span className="font-semibold text-foreground">{createdDate}</span>
                                 </p>
@@ -340,6 +386,7 @@ const MyLoans = () => {
           loanId={selectedLoan?.id || ""}
           loanAccount={selectedLoan ? `LN-${selectedLoan.id.substring(0, 8)}` : ""}
           outstandingBalance={selectedLoan?.outstanding || 0}
+          monthlyPayment={selectedLoan?.monthlyPayment || 0}
           onSuccess={handlePaymentSuccess}
         />
       </div>
