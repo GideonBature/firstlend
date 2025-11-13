@@ -4,10 +4,8 @@ import {
   Users, 
   DollarSign, 
   Package, 
-  BarChart3, 
   UserCog, 
   Wallet, 
-  AlertTriangle,
   Settings,
   LogOut,
   Briefcase
@@ -36,10 +34,8 @@ const menuItems = [
   { title: "Customers", icon: Users, url: "/admin/customers" },
   { title: "Payments", icon: DollarSign, url: "/admin/payments" },
   { title: "Products", icon: Package, url: "/admin/products" },
-  { title: "Reports", icon: BarChart3, url: "/admin/reports" },
   { title: "Admin Users", icon: UserCog, url: "/admin/users" },
   { title: "Disbursement", icon: Wallet, url: "/admin/disbursement" },
-  { title: "Risk", icon: AlertTriangle, url: "/admin/risk" },
   { title: "Settings", icon: Settings, url: "/admin/settings" },
 ];
 
@@ -60,7 +56,7 @@ export function AdminSidebar() {
         title: "Success",
         description: "Logged out successfully",
       });
-      navigate("/login");
+      navigate("/admin/login");
     } catch (error) {
       toast({
         title: "Error",

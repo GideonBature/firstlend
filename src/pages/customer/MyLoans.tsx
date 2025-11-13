@@ -13,6 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import type { LoanResponse } from "@/services/api";
 import { useNavigate } from "react-router-dom";
+import { calculateLoanProgress, calculateCurrentAmountDue } from "@/lib/loan-utils";
 
 const statusFilters = ["All", "pending", "approved", "active", "paid", "overdue", "rejected"] as const;
 
@@ -50,59 +51,11 @@ const getStatusBadge = (status: string) => {
   }
 };
 
-const getProgressValue = (loan: LoanResponse) => {
-  if (loan.status.toLowerCase() === "paid") return 100;
-  
-  // Calculate based on amount paid (principal - outstanding)
-  if (loan.principal && loan.outstandingBalance >= 0) {
-    const amountPaid = loan.principal - loan.outstandingBalance;
-    if (amountPaid > 0) {
-      const progress = (amountPaid / loan.principal) * 100;
-      return Math.max(0, Math.min(100, Math.round(progress)));
-    }
-  }
-  
-  return 0;
-};
-
 const getProgressIndicatorClass = (status: string) => {
   if (status.toLowerCase() === "overdue") {
     return "bg-red-500";
   }
   return "bg-primary";
-};
-
-// Calculate current amount due based on payment schedule
-const calculateCurrentAmountDue = (loan: LoanResponse) => {
-  // For non-active loans, return 0
-  if (!["active", "overdue"].includes(loan.status.toLowerCase())) {
-    return 0;
-  }
-
-  // Calculate total amount to be repaid (with interest)
-  const totalAmount = loan.amountDue;
-  
-  // Calculate monthly installment
-  const monthlyInstallment = totalAmount / loan.term;
-  
-  // Calculate how many months have passed since loan creation
-  const loanStartDate = new Date(loan.createdAt);
-  const today = new Date();
-  const monthsPassed = Math.floor((today.getTime() - loanStartDate.getTime()) / (1000 * 60 * 60 * 24 * 30));
-  
-  // Calculate how many installments should have been paid by now
-  const installmentsDue = Math.min(monthsPassed + 1, loan.term);
-  
-  // Calculate total that should have been paid
-  const totalShouldBePaid = monthlyInstallment * installmentsDue;
-  
-  // Calculate actual amount paid (total - outstanding)
-  const amountPaid = totalAmount - loan.outstandingBalance;
-  
-  // Current amount due is the difference
-  const currentDue = Math.max(0, totalShouldBePaid - amountPaid);
-  
-  return currentDue;
 };
 
 const MyLoans = () => {
@@ -267,7 +220,7 @@ const MyLoans = () => {
                     </Card>
                   ) : (
                     filteredLoans.map((loan) => {
-                      const progressValue = getProgressValue(loan);
+                      const progressValue = calculateLoanProgress(loan);
                       const currentAmountDue = calculateCurrentAmountDue(loan);
                       const nextPaymentDate = loan.nextPaymentDate
                         ? new Date(loan.nextPaymentDate).toLocaleDateString()
@@ -317,7 +270,7 @@ const MyLoans = () => {
                                 {loan.status.toLowerCase() !== "rejected" && (
                                   <>
                                     <p>
-                                      Outstanding: <span className="font-semibold text-foreground">₦{loan.outstandingBalance.toLocaleString("en-NG", { maximumFractionDigits: 2 })}</span>
+                                      Outstanding: <span className="font-semibold text-foreground">₦{(loan.outstandingBalance ?? 0).toLocaleString("en-NG", { maximumFractionDigits: 2 })}</span>
                                     </p>
                                     <p>
                                       Amount Due: <span className={`font-semibold ${currentAmountDue > 0 ? 'text-orange-600' : 'text-green-600'}`}>₦{currentAmountDue.toLocaleString("en-NG", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
@@ -343,7 +296,7 @@ const MyLoans = () => {
                                     </Button>
                                     <Button variant="outline" className="min-w-[130px]"
                                       onClick={() => {
-                                        navigate(`/customer/loan-details/${loan.id}`);
+                                        navigate(`/customer/loan-details/${loan.id}`, { state: { loan } });
                                       }}
                                     >
                                       View Details
@@ -360,9 +313,8 @@ const MyLoans = () => {
                                     </Button>
                                       <Button variant="outline" className="min-w-[130px]"
                                         onClick={() => {
-                                          navigate(`/customer/loan-details/${loan.id}`);
-                                        }
-                                        }
+                                          navigate(`/customer/loan-details/${loan.id}`, { state: { loan } });
+                                        }}
                                       >
                                       View Details
                                     </Button>
@@ -374,9 +326,8 @@ const MyLoans = () => {
                                 ) : (
                                         <Button variant="outline" className="min-w-[130px]"
                                           onClick={() => {
-                                            navigate(`/customer/loan-details/${loan.id}`);                                           
-                                          }
-                                          }>
+                                            navigate(`/customer/loan-details/${loan.id}`, { state: { loan } });                                           
+                                          }}>
                                     View Details
                                   </Button>
                                 )}

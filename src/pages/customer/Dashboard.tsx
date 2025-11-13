@@ -725,7 +725,7 @@ const CustomerDashboard = () => {
       </div>
 
       {/* Floating Chat Assistant */}
-      <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-3">
+      <div className="fixed bottom-20 right-8 z-50 flex flex-col items-end gap-3">
         {isChatOpen && (
           <div className="w-[90vw] max-w-md bg-white rounded-2xl shadow-2xl border border-blue-100">
             <div className="flex items-center justify-between px-4 py-3 border-b bg-blue-50 rounded-t-2xl">
@@ -744,10 +744,10 @@ const CustomerDashboard = () => {
         )}
 
         <Button
-          className="rounded-full shadow-lg bg-blue-600 hover:bg-blue-700 w-14 h-14"
+          className="rounded-full shadow-lg bg-primary hover:bg-primary/90 w-16 h-16"
           onClick={() => setIsChatOpen((prev) => !prev)}
         >
-          <MessageCircle className="w-6 h-6 text-white" />
+          <MessageCircle className="w-7 h-7 text-white" />
         </Button>
       </div>
     </CustomerLayout>

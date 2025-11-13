@@ -381,14 +381,14 @@ export function KYCDocumentsUpload({ onVerificationComplete }: KYCDocumentsUploa
                     id="bvn"
                     type="text"
                     placeholder="Enter your 11-digit BVN"
-                    value={bvn}
+                    value={isVerified ? "*".repeat(bvn.length || 11) : bvn}
                     onChange={(e) => setBvn(e.target.value.slice(0, 11))}
                     maxLength={11}
                     disabled={isVerified || loading}
                     className="font-mono"
                   />
                   <div className="flex items-center gap-2">
-                    <p className="text-xs text-muted-foreground">11 digits required</p>
+                    <p className="text-xs text-muted-foreground">Required</p>
                     {isVerified && <CheckCircle2 className="w-3 h-3 text-green-600" />}
                   </div>
                 </div>
@@ -400,15 +400,15 @@ export function KYCDocumentsUpload({ onVerificationComplete }: KYCDocumentsUploa
                   <Input
                     id="nin"
                     type="text"
-                    placeholder="Enter your NIN (up to 20 characters)"
-                    value={nin}
+                    placeholder="Enter your NIN"
+                    value={isVerified ? "*".repeat(nin.length || 11) : nin}
                     onChange={(e) => setNin(e.target.value.slice(0, 20))}
                     maxLength={20}
                     disabled={isVerified || loading}
                     className="font-mono text-lg"
                   />
                   <div className="flex items-center gap-2">
-                    <p className="text-xs text-muted-foreground">Up to 20 characters required</p>
+                    <p className="text-xs text-muted-foreground">Required</p>
                     {isVerified && <CheckCircle2 className="w-3 h-3 text-green-600" />}
                   </div>
                 </div>
@@ -418,14 +418,16 @@ export function KYCDocumentsUpload({ onVerificationComplete }: KYCDocumentsUploa
             {/* Document Upload Section */}
             <div className="space-y-4">
               <h3 className="text-lg font-semibold text-foreground">
-                Upload Required Documents
+                {isVerified ? "Required Documents Uploaded" : "Upload Required Documents"}
               </h3>
               <div className="space-y-4">
-                {documents.map((item) => (
-                  <div
-                    key={item.id}
-                    className="rounded-2xl border border-border/60 bg-card px-4 py-5 shadow-sm space-y-4"
-                  >
+                {documents.map((item) => {
+                  const isAttached = isVerified || !!item.file;
+                  return (
+                    <div
+                      key={item.id}
+                      className="rounded-2xl border border-border/60 bg-card px-4 py-5 shadow-sm space-y-4"
+                    >
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex items-start gap-4 flex-1">
                         <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-primary/10 bg-primary/5 text-primary flex-shrink-0">
@@ -441,25 +443,25 @@ export function KYCDocumentsUpload({ onVerificationComplete }: KYCDocumentsUploa
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        {item.file ? (
+                        {isAttached ? (
                           <CheckCircle2 className="w-5 h-5 text-green-600" />
                         ) : (
                           <AlertCircle className="w-5 h-5 text-gray-400" />
                         )}
                         <Badge
                           className={`rounded-full border px-3 py-1 text-xs font-medium ${
-                            item.file
+                            isAttached
                               ? "bg-green-100 text-green-700 border-green-200"
                               : "bg-gray-100 text-gray-600 border-gray-200"
                           }`}
                         >
-                          {item.file ? "Attached" : "Not Attached"}
+                          {isAttached ? "Attached" : "Not Attached"}
                         </Badge>
                       </div>
                     </div>
 
                     {/* File Upload Section */}
-                    {!item.file && (
+                    {!isAttached && (
                       <div className="flex items-center gap-4">
                         <label className="flex-1">
                           <div className="border-2 border-dashed border-border/60 rounded-lg p-4 hover:border-primary/50 cursor-pointer transition-colors">
@@ -487,12 +489,15 @@ export function KYCDocumentsUpload({ onVerificationComplete }: KYCDocumentsUploa
                     )}
 
                     {/* File Display */}
-                    {item.file && (
+                    {isAttached && (
                       <div className="flex items-center justify-between bg-muted/50 rounded-lg p-3">
                         <div className="flex items-center gap-2">
                           <File className="w-4 h-4 text-primary" />
-                          <span className="text-sm font-medium">{item.fileName}</span>
+                          <span className="text-sm font-medium">
+                            {item.fileName || "Document verified and securely stored"}
+                          </span>
                         </div>
+                        {!isVerified && (
                         <button
                           type="button"
                           onClick={() => handleRemoveFile(item.id)}
@@ -501,10 +506,12 @@ export function KYCDocumentsUpload({ onVerificationComplete }: KYCDocumentsUploa
                         >
                           <X className="w-4 h-4" />
                         </button>
+                        )}
                       </div>
                     )}
-                  </div>
-                ))}
+                    </div>
+                  );
+                })}
               </div>
             </div>
 

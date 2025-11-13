@@ -12,7 +12,6 @@ import {
   User,
   Lock,
   FileText,
-  Settings,
   Camera,
   CheckCircle2,
   Clock,
@@ -307,10 +306,6 @@ const Profile = () => {
               <FileText className="w-4 h-4 mr-2" />
               KYC Documents
             </TabsTrigger>
-            <TabsTrigger value="preferences" className="rounded-full px-4 py-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-              <Settings className="w-4 h-4 mr-2" />
-              Preferences
-            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="personal" className="space-y-6">
@@ -479,17 +474,6 @@ const Profile = () => {
             <KYCDocumentsUpload onVerificationComplete={checkKYCStatus} />
           </TabsContent>
 
-          <TabsContent value="preferences" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Preferences</CardTitle>
-                <p className="text-sm text-muted-foreground">Manage your account preferences.</p>
-              </CardHeader>
-              <CardContent>
-                <p className="text-muted-foreground">Preferences settings will be displayed here.</p>
-              </CardContent>
-            </Card>
-          </TabsContent>
         </Tabs>
       </div>
     </CustomerLayout>

@@ -5,6 +5,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { MakePaymentModal } from "./MakePaymentModal";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -86,6 +87,7 @@ export function CustomerLayout({ children }: CustomerLayoutProps) {
             </nav>
           </div>
           <div className="flex items-center gap-4">
+            <ThemeToggle />
             <Button variant="outline" size="sm" onClick={() => navigate("/customer/loans")}>
               View Schedule
             </Button>

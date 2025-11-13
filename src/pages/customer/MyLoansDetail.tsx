@@ -1,5 +1,5 @@
 import { CustomerLayout } from "@/components/customer/CustomerLayout";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { Loader2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -17,6 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import { loanApi, paymentApi, LoanResponse, PaymentHistoryRecord } from "@/services/api";
+import { calculateCurrentAmountDue, calculateLoanProgress } from "@/lib/loan-utils";
 
 type TabType = "overview" | "repayment" | "terms";
 
@@ -37,6 +38,7 @@ const formatDate = (dateString?: string | null) => {
 const MyLoansDetail = () => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
+    const location = useLocation();
     const { toast } = useToast();
 
     const [activeTab, setActiveTab] = useState<TabType>("overview");
@@ -44,7 +46,9 @@ const MyLoansDetail = () => {
     const itemsPerPage = 5; // Reduced for better view with payment history
 
     // API Data State
-    const [loan, setLoan] = useState<LoanResponse | null>(null);
+    const [loan, setLoan] = useState<LoanResponse | null>(
+        (location.state as { loan?: LoanResponse } | undefined)?.loan || null
+    );
     const [payments, setPayments] = useState<PaymentHistoryRecord[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -108,6 +112,12 @@ const MyLoansDetail = () => {
     const startIndex = (currentPage - 1) * itemsPerPage;
     const endIndex = startIndex + itemsPerPage;
     const currentPayments = payments.slice(startIndex, endIndex);
+
+    const outstandingBalance = loan?.outstandingBalance ?? 0;
+    const principal = loan?.principal ?? 0;
+    const computedTotalPaid = Math.max(0, principal - outstandingBalance);
+    const progressValue = loan ? calculateLoanProgress(loan) : 0;
+    const currentAmountDue = loan ? calculateCurrentAmountDue(loan) : 0;
 
     const tabs = [
         { id: "overview" as TabType, label: "Overview" },
@@ -190,7 +200,7 @@ const MyLoansDetail = () => {
                         </div>
                         <div className="flex gap-3">
                             <Button variant="outline" className="gap-2">
-                                {/* <Download className="w-4 h-4" /> // Import Download if needed */}+
+                                {/* <Download className="w-4 h-4" /> // Import Download if needed */}
                                 Download Statement
                             </Button>
                             <Button className="bg-accent text-accent-foreground hover:bg-accent/90">
@@ -204,7 +214,7 @@ const MyLoansDetail = () => {
                             <div>
                                 <p className="text-sm text-muted-foreground mb-1">Remaining Balance</p>
                                 <p className="text-2xl font-bold text-primary">
-                                    {formatCurrency(loan.outstandingBalance)}
+                                    {formatCurrency(outstandingBalance)}
                                 </p>
                                 <p className="text-xs text-muted-foreground mt-1">
                                     out of {formatCurrency(loan.principal)}
@@ -213,13 +223,13 @@ const MyLoansDetail = () => {
                             <div>
                                 <p className="text-sm text-muted-foreground mb-1">Total Paid</p>
                                 <p className="text-xl font-semibold text-foreground">
-                                    {formatCurrency(totalPaid)}
+                                    {formatCurrency(computedTotalPaid)}
                                 </p>
                             </div>
                             <div>
                                 <p className="text-sm text-muted-foreground mb-1">Next Payment</p>
                                 <p className="text-xl font-semibold text-foreground">
-                                    {formatCurrency(loan.amountDue)}
+                                    {formatCurrency(currentAmountDue || loan?.amountDue || 0)}
                                 </p>
                             </div>
                             <div>
@@ -229,7 +239,7 @@ const MyLoansDetail = () => {
                                 </p>
                             </div>
                         </div>
-                        <Progress value={loan.paymentProgress} />
+                        <Progress value={progressValue} />
                     </Card>
 
                     <div className="flex gap-4 mb-6 border-b border-border">

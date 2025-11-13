@@ -661,12 +661,15 @@ export interface AdminUser {
   totalLoans: number;
   totalBorrowed: number;
   loanStatus: string;
+  role?: string;
 }
 
 interface AdminUsersParams {
   page?: number;
   pageSize?: number;
   userType?: string;
+  role?: string;
+  status?: string;
 }
 
 interface AdminUsersResponse {
@@ -678,6 +681,18 @@ interface AdminUsersResponse {
   totalCount: number;
   page: number;
   pageSize: number;
+}
+
+interface CreateAdminUserRequest {
+  fullName: string;
+  email: string;
+  password: string;
+  phoneNumber: string;
+  role: string;
+}
+
+interface UpdateAdminStatusRequest {
+  status: string;
 }
 
 export interface AdminPayment {
@@ -739,6 +754,55 @@ export interface AdminDashboardSummary {
   }>;
 }
 
+interface AdminDisbursementParams {
+  status?: string;
+  search?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+interface AdminDisbursementResponse {
+  success: boolean;
+  message: string;
+  code: string;
+  data: LoanResponse[];
+  errors: null;
+  totalCount: number;
+  page: number;
+  pageSize: number;
+}
+
+export interface AdminDisbursementStats {
+  totalDisbursedMTD: number;
+  pendingAmount: number;
+  completedToday: number;
+  successRate: number;
+}
+
+export interface AdminAIInsightMetrics {
+  riskLevel: string;
+  approvalRate: number;
+  utilizationRate: number;
+  defaultRisk: number;
+  totalApplications: number;
+  totalDisbursed: number;
+  totalOutstanding: number;
+}
+
+export interface AdminAIInsight {
+  insight: string;
+  mode: string;
+  tags: string[];
+  metrics: AdminAIInsightMetrics;
+}
+
+export interface AdminAIInsightResponse {
+  success: boolean;
+  message: string;
+  code?: string;
+  data?: AdminAIInsight;
+}
+
 export interface AdminLoanProduct {
   id: string;
   name: string;
@@ -764,6 +828,17 @@ interface LoanProductPayload {
   name: string;
   interest: number;
   maxTermMonths?: number;
+}
+
+interface InitializeDisbursementResponse {
+  authorizationUrl: string;
+  reference: string;
+}
+
+interface VerifyDisbursementResponse {
+  loan: LoanResponse;
+  status: string;
+  reference: string;
 }
 
 /**
@@ -830,6 +905,8 @@ export const adminApi = {
     queryParams.append('page', String(params?.page || 1));
     queryParams.append('pageSize', String(params?.pageSize || 10));
     if (params?.userType) queryParams.append('userType', params.userType);
+    if (params?.role) queryParams.append('role', params.role);
+    if (params?.status) queryParams.append('status', params.status);
 
     const response = await fetch(`${API_BASE_URL}/admin/users?${queryParams.toString()}`, {
       method: 'GET',
@@ -840,6 +917,35 @@ export const adminApi = {
     });
 
     return response.json();
+  },
+
+  /**
+   * Create a new admin user
+   */
+  async createAdminUser(payload: CreateAdminUserRequest): Promise<ApiResponse<AdminUser>> {
+    return fetchApi<AdminUser>('/admin/users', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }, true);
+  },
+
+  /**
+   * Update admin status
+   */
+  async updateAdminStatus(userId: string, status: string): Promise<ApiResponse<AdminUser>> {
+    return fetchApi<AdminUser>(`/admin/users/${userId}/status`, {
+      method: 'PUT',
+      body: JSON.stringify({ status } satisfies UpdateAdminStatusRequest),
+    }, true);
+  },
+
+  /**
+   * Delete admin user
+   */
+  async deleteAdminUser(userId: string): Promise<ApiResponse<void>> {
+    return fetchApi<void>(`/admin/users/${userId}`, {
+      method: 'DELETE',
+    }, true);
   },
 
   /**
@@ -876,6 +982,89 @@ export const adminApi = {
     const endpoint = `/admin/dashboard/summary${queryString ? `?${queryString}` : ''}`;
 
     return fetchApi<AdminDashboardSummary>(endpoint, {
+      method: 'GET',
+    }, true);
+  },
+
+  /**
+   * Get loans ready for disbursement
+   */
+  async getDisbursementLoans(params?: AdminDisbursementParams): Promise<AdminDisbursementResponse> {
+    const queryParams = new URLSearchParams();
+    queryParams.append('page', String(params?.page || 1));
+    queryParams.append('pageSize', String(params?.pageSize || 10));
+    if (params?.status) queryParams.append('status', params.status);
+    if (params?.search) queryParams.append('search', params.search);
+
+    const response = await fetch(`${API_BASE_URL}/admin/loans/disbursement?${queryParams.toString()}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,
+      },
+    });
+
+    return response.json();
+  },
+
+  /**
+   * Get disbursement statistics
+   */
+  async getDisbursementStats(): Promise<ApiResponse<AdminDisbursementStats>> {
+    return fetchApi<AdminDisbursementStats>('/admin/loans/disbursement/stats', {
+      method: 'GET',
+    }, true);
+  },
+
+  /**
+   * Initialize disbursement payment (Paystack)
+   */
+  async initializeDisbursement(loanId: string): Promise<ApiResponse<InitializeDisbursementResponse>> {
+    return fetchApi<InitializeDisbursementResponse>(`/admin/loans/${loanId}/disburse/initialize`, {
+      method: 'POST',
+    }, true);
+  },
+
+  /**
+   * Verify Paystack disbursement callback
+   */
+  async verifyDisbursement(loanId: string, reference: string): Promise<ApiResponse<VerifyDisbursementResponse>> {
+    const queryParams = new URLSearchParams();
+    if (reference) {
+      queryParams.append('reference', reference);
+    }
+
+    return fetchApi<VerifyDisbursementResponse>(`/admin/loans/${loanId}/disburse/verify?${queryParams.toString()}`, {
+      method: 'GET',
+    }, true);
+  },
+
+  /**
+   * Get AI dashboard insights
+   */
+  async getDashboardAIInsight(mode: string = 'HighConfidence'): Promise<ApiResponse<AdminAIInsight>> {
+    const queryParams = new URLSearchParams();
+    if (mode) queryParams.append('mode', mode);
+
+    return fetchApi<AdminAIInsight>(`/admin/dashboard/ai-insights?${queryParams.toString()}`, {
+      method: 'GET',
+    }, true);
+  },
+
+  /**
+   * Disburse an approved loan
+   */
+  async disburseLoan(loanId: string): Promise<ApiResponse<LoanResponse>> {
+    return fetchApi<LoanResponse>(`/admin/loans/${loanId}/disburse`, {
+      method: 'PUT',
+    }, true);
+  },
+
+  /**
+   * Get loan details (admin)
+   */
+  async getLoanById(loanId: string): Promise<ApiResponse<LoanResponse>> {
+    return fetchApi<LoanResponse>(`/admin/loans/${loanId}`, {
       method: 'GET',
     }, true);
   },

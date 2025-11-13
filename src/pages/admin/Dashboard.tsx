@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Area, AreaChart, Legend } from "recharts";
 import { TrendingUp, Sparkles, Loader2 } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { adminApi, AdminDashboardSummary } from "@/services/api";
+import { adminApi, AdminDashboardSummary, AdminAIInsight } from "@/services/api";
 
 const loanStatusColors = {
   pending: "#F4C430",
@@ -34,6 +34,9 @@ const AdminDashboard = () => {
   const [summary, setSummary] = useState<AdminDashboardSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [aiInsight, setAIInsight] = useState<AdminAIInsight | null>(null);
+  const [aiLoading, setAILoading] = useState(true);
+  const [aiMode, setAiMode] = useState<"HighConfidence" | "Predictive">("HighConfidence");
 
   useEffect(() => {
     const fetchSummary = async () => {
@@ -58,6 +61,23 @@ const AdminDashboard = () => {
 
     fetchSummary();
   }, [selectedPeriod]);
+
+  useEffect(() => {
+    const fetchInsight = async () => {
+      try {
+        setAILoading(true);
+        const response = await adminApi.getDashboardAIInsight(aiMode);
+        if (response.success && response.data) {
+          setAIInsight(response.data);
+        }
+      } catch (error) {
+        console.error("Failed to load AI insight:", error);
+      } finally {
+        setAILoading(false);
+      }
+    };
+    fetchInsight();
+  }, [aiMode]);
 
   const formatCurrency = (value?: number, maximumFractionDigits = 0) => {
     if (typeof value !== "number") return "--";
@@ -95,6 +115,23 @@ const AdminDashboard = () => {
       precision: 2,
     },
   ];
+
+  const periodCopy: Record<string, string> = {
+    today: "today",
+    week: "over the last 7 days",
+    month: "this month",
+  };
+
+  const insightMessage = aiInsight?.insight
+    ? aiInsight.insight
+    : summary
+    ? `Loan operations processed ${summary.totalNewApplications?.toLocaleString() || 0} new applications ${periodCopy[selectedPeriod]}, disbursing ${formatCurrency(summary.totalDisbursed, 0)} while keeping outstanding exposure around ${formatCurrency(summary.totalOutstanding, 0)}.`
+    : "Based on current trends, loan applications are expected to increase, so keep an eye on approval workflows and staffing levels.";
+
+  const additionalTags =
+    aiInsight?.tags?.filter(
+      (tag) => !/high|confidence|predictive/i.test(tag)
+    ) || [];
 
   const applicationStatusData = [
     {
@@ -155,10 +192,6 @@ const AdminDashboard = () => {
             <h1 className="text-3xl font-bold">Admin Dashboard</h1>
             <p className="text-muted-foreground">A summary of key operational metrics and recent activities.</p>
           </div>
-          <Button>
-            <span className="mr-2">+</span>
-            New Application
-          </Button>
         </div>
 
         {error && (
@@ -177,11 +210,36 @@ const AdminDashboard = () => {
               <div className="flex-1">
                 <h3 className="font-semibold mb-1">AI-Powered Insights</h3>
                 <p className="text-sm text-muted-foreground mb-3">
-                  Based on current trends, loan applications are expected to <strong>increase by 18%</strong> next month. Consider reviewing approval workflows and staffing levels.
+                  {aiLoading ? "Generating AI insight..." : insightMessage}
                 </p>
-                <div className="flex gap-2">
-                  <Badge className="bg-purple-500 hover:bg-purple-600 text-white">High Confidence</Badge>
-                  <Badge variant="outline" className="border-purple-300 text-purple-700 bg-purple-50">Predictive Analytics</Badge>
+                <div className="flex gap-2 flex-wrap">
+                  {[
+                    { label: "High Confidence", value: "HighConfidence" as const },
+                    { label: "Predictive Analytics", value: "Predictive" as const },
+                  ].map((mode) => (
+                    <Button
+                      key={mode.value}
+                      variant={aiMode === mode.value ? "default" : "outline"}
+                      size="sm"
+                      className={
+                        aiMode === mode.value
+                          ? "bg-purple-500 hover:bg-purple-600 text-white"
+                          : "border-purple-300 text-purple-700 bg-purple-50 hover:bg-purple-100"
+                      }
+                      onClick={() => setAiMode(mode.value)}
+                    >
+                      {mode.label}
+                    </Button>
+                  ))}
+                  {additionalTags.map((tag) => (
+                    <Badge
+                      key={tag}
+                      variant="outline"
+                      className="border-purple-300 text-purple-700 bg-purple-50"
+                    >
+                      {tag}
+                    </Badge>
+                  ))}
                 </div>
               </div>
             </div>

@@ -7,16 +7,16 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import Index from "./pages/Index";
 import Login from "./pages/Login";
+import AdminLogin from "./pages/AdminLogin";
 import Register from "./pages/Register";
 import AdminDashboard from "./pages/admin/Dashboard";
 import AdminApplications from "./pages/admin/Applications";
 import AdminCustomers from "./pages/admin/Customers";
 import AdminPayments from "./pages/admin/Payments";
 import AdminProducts from "./pages/admin/Products";
-import AdminReports from "./pages/admin/Reports";
 import AdminUsers from "./pages/admin/AdminUsers";
 import AdminDisbursement from "./pages/admin/Disbursement";
-import AdminRisk from "./pages/admin/Risk";
+import AdminDisbursementCallback from "./pages/admin/DisbursementCallback";
 import AdminSettings from "./pages/admin/Settings";
 import CustomerDashboard from "./pages/customer/Dashboard";
 import CustomerLoans from "./pages/customer/MyLoans";
@@ -42,6 +42,7 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/login" element={<Login />} />
+            <Route path="/admin/login" element={<AdminLogin />} />
             <Route path="/register" element={<Register />} />
             <Route
               path="/admin/dashboard"
@@ -84,14 +85,6 @@ const App = () => (
               }
             />
             <Route
-              path="/admin/reports"
-              element={
-                <ProtectedRoute allowedUserTypes={["admin"]}>
-                  <AdminReports />
-                </ProtectedRoute>
-              }
-            />
-            <Route
               path="/admin/users"
               element={
                 <ProtectedRoute allowedUserTypes={["admin"]}>
@@ -108,10 +101,10 @@ const App = () => (
               }
             />
             <Route
-              path="/admin/risk"
+              path="/admin/disbursement/callback"
               element={
                 <ProtectedRoute allowedUserTypes={["admin"]}>
-                  <AdminRisk />
+                  <AdminDisbursementCallback />
                 </ProtectedRoute>
               }
             />

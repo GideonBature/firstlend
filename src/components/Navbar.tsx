@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -77,6 +78,7 @@ const Navbar = () => {
           </div>
 
           <div className="flex items-center gap-4">
+            <ThemeToggle />
             {isAuthenticated ? (
               <>
                 <Button 
@@ -124,7 +126,12 @@ const Navbar = () => {
               <>
                 <Link to="/login">
                   <Button variant="ghost" className="text-primary-foreground hover:text-accent hover:bg-primary-foreground/10">
-                    Login
+                    Customer Login
+                  </Button>
+                </Link>
+                <Link to="/admin/login">
+                  <Button variant="ghost" className="text-primary-foreground hover:text-accent hover:bg-primary-foreground/10">
+                    Admin Login
                   </Button>
                 </Link>
                 <Link to="/register">

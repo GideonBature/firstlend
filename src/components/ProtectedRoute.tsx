@@ -33,7 +33,9 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, allowe
   // If not authenticated, redirect to login
   if (!user) {
     console.warn('ProtectedRoute: User not authenticated');
-    return <Navigate to="/login" replace />;
+    const requiresAdminOnly = allowedUserTypes.includes('admin') && !allowedUserTypes.includes('customer');
+    const redirectPath = requiresAdminOnly ? '/admin/login' : '/login';
+    return <Navigate to={redirectPath} replace />;
   }
 
   // If user type is not allowed, redirect to appropriate dashboard
