@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,19 +19,40 @@ import {
   Upload,
   Loader2,
   File,
-  X,
   Shield,
 } from "lucide-react";
-import { authApi } from "@/services/api";
+import { authApi, KYCDocumentType } from "@/services/api";
 import { useToast } from "@/hooks/use-toast";
 
-interface DocumentItem {
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+
+interface DocumentDefinition {
   id: string;
   title: string;
   description: string;
-  file?: File;
-  fileName?: string;
+  cardKey: string;
+  apiDocumentType: string;
+  helper: string;
 }
+
+const REQUIRED_DOCUMENTS: DocumentDefinition[] = [
+  {
+    id: "government-id",
+    title: "Government-issued ID",
+    description: "National ID, Passport, or Driver's License",
+    cardKey: "government_issued_id",
+    apiDocumentType: "government_issued_id",
+    helper: "Document verified and securely stored",
+  },
+  {
+    id: "address-proof",
+    title: "Proof of Address",
+    description: "Utility bill or bank statement (last 3 months)",
+    cardKey: "proof_of_address",
+    apiDocumentType: "proof_of_address",
+    helper: "Document verified and securely stored",
+  },
+];
 
 type VerificationStep = "idle" | "verifying-bvn" | "bvn-success" | "verifying-nin" | "nin-success" | "completed";
 
@@ -47,67 +68,102 @@ export function KYCDocumentsUpload({ onVerificationComplete }: KYCDocumentsUploa
   const [isVerified, setIsVerified] = useState(false);
   const [verificationStep, setVerificationStep] = useState<VerificationStep>("idle");
   const [showVerificationModal, setShowVerificationModal] = useState(false);
-  const [documents, setDocuments] = useState<DocumentItem[]>([
-    {
-      id: "government-id",
-      title: "Government-issued ID",
-      description: "National ID, Passport, or Driver's License",
-    },
-    {
-      id: "address-proof",
-      title: "Proof of Address",
-      description: "Utility bill or bank statement (last 3 months)",
-    },
-  ]);
+  const [documentsMap, setDocumentsMap] = useState<Record<string, KYCDocumentType>>({});
+  const [documentsLoading, setDocumentsLoading] = useState(true);
+  const [documentsError, setDocumentsError] = useState<string | null>(null);
+  const [uploadingDocKey, setUploadingDocKey] = useState<string | null>(null);
 
-  // Fetch current user to check KYC status on component mount
-  useEffect(() => {
-    const loadKYCStatus = async () => {
-      try {
-        const response = await authApi.getKYCStatus();
-        if (response.success && response.data) {
-          const kycData = response.data;
-          if (kycData.bvn) setBvn(kycData.bvn);
-          if (kycData.nin) setNin(kycData.nin);
-          if (kycData.isVerified) setIsVerified(true);
-        }
-      } catch (error) {
-        console.error("Error fetching KYC status:", error);
+  const getCardKeyFromApiType = (apiType: string) =>
+    REQUIRED_DOCUMENTS.find((doc) => doc.apiDocumentType === apiType)?.cardKey || apiType;
+
+  const loadKYCStatus = useCallback(async () => {
+    try {
+      const response = await authApi.getKYCStatus();
+      if (response.success && response.data) {
+        const kycData = response.data;
+        if (kycData.bvn) setBvn(kycData.bvn);
+        if (kycData.nin) setNin(kycData.nin);
+        if (kycData.isVerified) setIsVerified(true);
       }
-    };
-
-    loadKYCStatus();
+    } catch (error) {
+      console.error("Error fetching KYC status:", error);
+    }
   }, []);
 
-  const handleFileSelect = (documentId: string, file: File) => {
-    setDocuments((prev) =>
-      prev.map((doc) =>
-        doc.id === documentId
-          ? {
-              ...doc,
-              file,
-              fileName: file.name,
-            }
-          : doc
-      )
-    );
+  const loadDocuments = useCallback(async () => {
+    try {
+      setDocumentsLoading(true);
+      setDocumentsError(null);
+      const response = await authApi.getKYCDocuments();
+      if (response.success && response.data) {
+        const mapped = response.data.reduce<Record<string, KYCDocumentType>>((acc, doc) => {
+          const cardKey = getCardKeyFromApiType(doc.documentType);
+          acc[cardKey] = { ...doc, documentType: cardKey };
+          return acc;
+        }, {});
+        setDocumentsMap(mapped);
+      } else {
+        setDocumentsError(response.message || "Unable to load uploaded documents.");
+      }
+    } catch (error) {
+      console.error("Error loading KYC documents:", error);
+      setDocumentsError("Failed to load documents. Please try again.");
+    } finally {
+      setDocumentsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadKYCStatus();
+    loadDocuments();
+  }, [loadKYCStatus, loadDocuments]);
+
+  const uploadDocument = async (definition: DocumentDefinition, file: File) => {
+    if (file.size > MAX_FILE_SIZE) {
+      toast({
+        title: "File Too Large",
+        description: "Each document must be under 5MB.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setUploadingDocKey(definition.cardKey);
+      const response = await authApi.uploadKYCDocument(definition.apiDocumentType, file, bvn || undefined, nin || undefined);
+
+      if (response.success && response.data) {
+        setDocumentsMap((prev) => ({
+          ...prev,
+          [definition.cardKey]: {
+            ...response.data,
+            documentType: definition.cardKey,
+            fileName: file.name,
+          },
+        }));
+        toast({
+          title: "Document Uploaded",
+          description: "Document uploaded successfully and stored securely.",
+        });
+      } else {
+        toast({
+          title: "Upload Failed",
+          description: response.message || "Unable to upload document. Please try again.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("Error uploading KYC document:", error);
+      toast({
+        title: "Upload Failed",
+        description: "Something went wrong while uploading your document.",
+        variant: "destructive",
+      });
+    } finally {
+      setUploadingDocKey(null);
+    }
   };
 
-  const handleRemoveFile = (documentId: string) => {
-    setDocuments((prev) =>
-      prev.map((doc) =>
-        doc.id === documentId
-          ? {
-              ...doc,
-              file: undefined,
-              fileName: undefined,
-            }
-          : doc
-      )
-    );
-  };
-
-  // Sequential verification with modal
   const simulateVerificationStep = async (
     startStep: VerificationStep,
     endStep: VerificationStep,
@@ -147,7 +203,7 @@ export function KYCDocumentsUpload({ onVerificationComplete }: KYCDocumentsUploa
       return false;
     }
 
-    if (!nin.trim() || nin.trim().length > 20 || nin.trim().length < 1) {
+    if (nin.trim().length < 1 || nin.trim().length > 20) {
       toast({
         title: "Error",
         description: "NIN must be between 1 and 20 characters",
@@ -156,11 +212,11 @@ export function KYCDocumentsUpload({ onVerificationComplete }: KYCDocumentsUploa
       return false;
     }
 
-    const hasDocuments = documents.some((doc) => doc.file);
-    if (!hasDocuments) {
+    const hasAllDocuments = REQUIRED_DOCUMENTS.every((doc) => documentsMap[doc.cardKey]);
+    if (!hasAllDocuments) {
       toast({
         title: "Error",
-        description: "Please attach at least one document",
+        description: "Please attach all required documents",
         variant: "destructive",
       });
       return false;
@@ -180,30 +236,21 @@ export function KYCDocumentsUpload({ onVerificationComplete }: KYCDocumentsUploa
     setLoading(true);
 
     try {
-      // Step 1: Verify BVN (2 seconds)
       await simulateVerificationStep("verifying-bvn", "bvn-success", 2000);
-
-      // Step 2: Verify NIN (2 seconds)
       await simulateVerificationStep("verifying-nin", "nin-success", 2000);
 
-      // Step 3: Call backend API to verify BVN and NIN
-      console.log("Verifying KYC with BVN and NIN...", { bvn: bvn.trim(), nin: nin.trim() });
       const verifyResponse = await authApi.verifyKYC({
         bvn: bvn.trim(),
         nin: nin.trim(),
       });
 
-      console.log("KYC verification response:", verifyResponse);
-
       if (!verifyResponse.success) {
         throw new Error(verifyResponse.message || "Verification failed");
       }
 
-      // Step 4: Show completion
       setVerificationStep("completed");
       setIsVerified(true);
 
-      // Auto close modal after 2 seconds
       await new Promise((resolve) => setTimeout(resolve, 2000));
       setShowVerificationModal(false);
 
@@ -212,10 +259,11 @@ export function KYCDocumentsUpload({ onVerificationComplete }: KYCDocumentsUploa
         description: "KYC verification completed! You are now ready to apply for loans.",
       });
 
-      // Call parent callback if provided
       if (onVerificationComplete) {
         onVerificationComplete();
       }
+
+      await loadDocuments();
     } catch (error) {
       setShowVerificationModal(false);
       toast({
@@ -228,36 +276,41 @@ export function KYCDocumentsUpload({ onVerificationComplete }: KYCDocumentsUploa
     }
   };
 
-  // Calculate progress: 100% if verified, otherwise based on input completion
-  const hasAllInputs = bvn.trim() && nin.trim() && documents.some((doc) => doc.file);
-  const totalProgress = isVerified ? 100 : (hasAllInputs ? 50 : 0);
+  const infoCompleted = bvn.trim().length === 11 && nin.trim().length >= 8;
+  const uploadedDocumentsCount = REQUIRED_DOCUMENTS.filter((doc) => documentsMap[doc.cardKey]).length;
+  const documentProgress = (uploadedDocumentsCount / REQUIRED_DOCUMENTS.length) * 50;
+  const totalProgress = isVerified ? 100 : Math.round((infoCompleted ? 50 : 0) + documentProgress);
+
+  const formatUploadedDate = (iso?: string) => {
+    if (!iso) return "";
+    return new Date(iso).toLocaleDateString("en-GB", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
+  };
+
+  const getDocumentDisplayName = (docType?: string) => {
+    if (!docType) return "Uploaded Document";
+    const definition = REQUIRED_DOCUMENTS.find((doc) => doc.cardKey === docType);
+    return definition?.title || "Uploaded Document";
+  };
 
   return (
     <div className="space-y-6">
-      {/* Verification Modal */}
       <Dialog open={showVerificationModal}>
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Verifying Your Identity</DialogTitle>
           </DialogHeader>
           <div className="space-y-6 py-6">
-            {/* BVN Verification Step */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   {verificationStep === "verifying-bvn" && (
                     <Loader2 className="w-5 h-5 text-blue-600 animate-spin" />
                   )}
-                  {verificationStep === "bvn-success" && (
-                    <CheckCircle2 className="w-5 h-5 text-green-600" />
-                  )}
-                  {verificationStep === "verifying-nin" && (
-                    <CheckCircle2 className="w-5 h-5 text-green-600" />
-                  )}
-                  {verificationStep === "nin-success" && (
-                    <CheckCircle2 className="w-5 h-5 text-green-600" />
-                  )}
-                  {verificationStep === "completed" && (
+                  {verificationStep !== "verifying-bvn" && verificationStep !== "idle" && (
                     <CheckCircle2 className="w-5 h-5 text-green-600" />
                   )}
                   {verificationStep === "idle" && (
@@ -275,23 +328,17 @@ export function KYCDocumentsUpload({ onVerificationComplete }: KYCDocumentsUploa
                 )}
               </div>
               {verificationStep === "verifying-bvn" && (
-                <p className="text-sm text-muted-foreground ml-8">
-                  Verifying your BVN...
-                </p>
+                <p className="text-sm text-muted-foreground ml-8">Verifying your BVN...</p>
               )}
             </div>
 
-            {/* NIN Verification Step */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   {verificationStep === "verifying-nin" && (
                     <Loader2 className="w-5 h-5 text-blue-600 animate-spin" />
                   )}
-                  {verificationStep === "nin-success" && (
-                    <CheckCircle2 className="w-5 h-5 text-green-600" />
-                  )}
-                  {verificationStep === "completed" && (
+                  {(verificationStep === "nin-success" || verificationStep === "completed") && (
                     <CheckCircle2 className="w-5 h-5 text-green-600" />
                   )}
                   {(verificationStep === "idle" ||
@@ -301,21 +348,17 @@ export function KYCDocumentsUpload({ onVerificationComplete }: KYCDocumentsUploa
                   )}
                   <span className="font-semibold">NIN Verification</span>
                 </div>
-                {(verificationStep === "nin-success" ||
-                  verificationStep === "completed") && (
+                {(verificationStep === "nin-success" || verificationStep === "completed") && (
                   <Badge className="bg-green-100 text-green-700 border-green-200">
                     Verified
                   </Badge>
                 )}
               </div>
               {verificationStep === "verifying-nin" && (
-                <p className="text-sm text-muted-foreground ml-8">
-                  Verifying your NIN...
-                </p>
+                <p className="text-sm text-muted-foreground ml-8">Verifying your NIN...</p>
               )}
             </div>
 
-            {/* Completion Step */}
             {verificationStep === "completed" && (
               <Alert className="rounded-lg border border-green-200 bg-green-50 text-green-800">
                 <CheckCircle2 className="w-4 h-4" />
@@ -337,7 +380,11 @@ export function KYCDocumentsUpload({ onVerificationComplete }: KYCDocumentsUploa
           </p>
         </CardHeader>
         <CardContent className="space-y-6">
-          <Alert className={`rounded-2xl border ${isVerified ? 'border-green-200 bg-green-50 text-green-800' : 'border-blue-200 bg-blue-50 text-blue-800'}`}>
+          <Alert
+            className={`rounded-2xl border ${
+              isVerified ? "border-green-200 bg-green-50 text-green-800" : "border-blue-200 bg-blue-50 text-blue-800"
+            }`}
+          >
             <AlertTitle className="flex items-center gap-2">
               {isVerified ? <CheckCircle2 className="w-5 h-5" /> : <Clock className="w-5 h-5" />}
               {isVerified ? "Verification Completed" : "Complete Your Verification"}
@@ -349,23 +396,20 @@ export function KYCDocumentsUpload({ onVerificationComplete }: KYCDocumentsUploa
             </AlertDescription>
           </Alert>
 
-          {/* Progress Bar */}
           <div className="space-y-2">
             <div className="flex justify-between items-center">
               <span className="text-sm font-medium">Verification Progress</span>
-              <span className="text-sm text-muted-foreground">{Math.round(totalProgress)}%</span>
+              <span className="text-sm text-muted-foreground">{totalProgress}%</span>
             </div>
             <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
-              <div 
+              <div
                 className="bg-blue-600 h-full rounded-full transition-all duration-300"
                 style={{ width: `${totalProgress}%` }}
               ></div>
             </div>
           </div>
 
-          {/* Single Form - All fields together */}
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Personal Information Section */}
             <div className="space-y-4">
               <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
                 <Shield className="w-5 h-5" />
@@ -415,107 +459,142 @@ export function KYCDocumentsUpload({ onVerificationComplete }: KYCDocumentsUploa
               </div>
             </div>
 
-            {/* Document Upload Section */}
             <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-foreground">
+              <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
+                <FileBadge className="w-5 h-5 text-primary" />
                 {isVerified ? "Required Documents Uploaded" : "Upload Required Documents"}
               </h3>
-              <div className="space-y-4">
-                {documents.map((item) => {
-                  const isAttached = isVerified || !!item.file;
-                  return (
-                    <div
-                      key={item.id}
-                      className="rounded-2xl border border-border/60 bg-card px-4 py-5 shadow-sm space-y-4"
-                    >
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex items-start gap-4 flex-1">
-                        <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-primary/10 bg-primary/5 text-primary flex-shrink-0">
-                          <FileBadge className="h-6 w-6" />
-                        </div>
-                        <div className="flex-1">
-                          <p className="text-base font-semibold text-foreground">
-                            {item.title}
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            {item.description}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {isAttached ? (
-                          <CheckCircle2 className="w-5 h-5 text-green-600" />
-                        ) : (
-                          <AlertCircle className="w-5 h-5 text-gray-400" />
-                        )}
-                        <Badge
-                          className={`rounded-full border px-3 py-1 text-xs font-medium ${
-                            isAttached
-                              ? "bg-green-100 text-green-700 border-green-200"
-                              : "bg-gray-100 text-gray-600 border-gray-200"
-                          }`}
-                        >
-                          {isAttached ? "Attached" : "Not Attached"}
-                        </Badge>
-                      </div>
-                    </div>
 
-                    {/* File Upload Section */}
-                    {!isAttached && (
-                      <div className="flex items-center gap-4">
-                        <label className="flex-1">
-                          <div className="border-2 border-dashed border-border/60 rounded-lg p-4 hover:border-primary/50 cursor-pointer transition-colors">
-                            <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground hover:text-primary">
-                              <Upload className="w-4 h-4" />
-                              <span>Click to upload or drag and drop</span>
+              {documentsLoading ? (
+                <div className="flex items-center justify-center py-6">
+                  <Loader2 className="w-5 h-5 animate-spin text-primary" />
+                </div>
+              ) : (
+                <>
+                  {documentsError && (
+                    <Alert variant="destructive" className="rounded-xl">
+                      <AlertTitle>Unable to load documents</AlertTitle>
+                      <AlertDescription>{documentsError}</AlertDescription>
+                    </Alert>
+                  )}
+                  <div className="space-y-4">
+                    {REQUIRED_DOCUMENTS.map((item) => {
+                      const uploadedDocument = documentsMap[item.cardKey];
+                      const isAttached = Boolean(uploadedDocument);
+                      return (
+                        <div
+                          key={item.id}
+                          className="rounded-2xl border border-border/60 bg-card px-4 py-5 shadow-sm space-y-4"
+                        >
+                          <div className="flex items-start justify-between gap-4">
+                            <div className="flex items-start gap-4 flex-1">
+                              <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-primary/10 bg-primary/5 text-primary flex-shrink-0">
+                                <FileBadge className="h-6 w-6" />
+                              </div>
+                              <div className="flex-1">
+                                <p className="text-base font-semibold text-foreground">{item.title}</p>
+                                <p className="text-sm text-muted-foreground">{item.description}</p>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              {isAttached || isVerified ? (
+                                <CheckCircle2 className="w-5 h-5 text-green-600" />
+                              ) : (
+                                <AlertCircle className="w-5 h-5 text-gray-400" />
+                              )}
+                              <Badge
+                                className={`rounded-full border px-3 py-1 text-xs font-medium ${
+                                  isAttached || isVerified
+                                    ? "bg-green-100 text-green-700 border-green-200"
+                                    : "bg-gray-100 text-gray-600 border-gray-200"
+                                }`}
+                              >
+                                {isAttached || isVerified ? "Attached" : "Not Attached"}
+                              </Badge>
+                            </div>
+                          </div>
+
+                          {!(isAttached || isVerified) && (
+                            <label className="flex flex-col gap-2 cursor-pointer">
+                              <div className="border-2 border-dashed border-border/60 rounded-lg p-6 hover:border-primary/50 transition-colors">
+                                <div className="flex flex-col items-center gap-2 text-sm text-muted-foreground">
+                                  <Upload className="w-4 h-4" />
+                                  <span>Click to upload or drag and drop</span>
+                                  <span className="text-xs text-muted-foreground">PNG, JPG, or PDF (max 5MB)</span>
+                                </div>
+                              </div>
                               <input
                                 type="file"
                                 accept=".pdf,.jpg,.jpeg,.png"
+                                className="hidden"
+                                disabled={isVerified || loading || uploadingDocKey === item.cardKey}
                                 onChange={(e) => {
                                   if (e.target.files?.[0]) {
-                                    handleFileSelect(item.id, e.target.files[0]);
+                                    uploadDocument(item, e.target.files[0]);
                                   }
                                 }}
-                                className="hidden"
-                                disabled={isVerified || loading}
                               />
-                            </div>
-                            <p className="text-xs text-muted-foreground text-center mt-2">
-                              PNG, JPG, or PDF (max 5MB)
-                            </p>
-                          </div>
-                        </label>
-                      </div>
-                    )}
+                            </label>
+                          )}
 
-                    {/* File Display */}
-                    {isAttached && (
-                      <div className="flex items-center justify-between bg-muted/50 rounded-lg p-3">
-                        <div className="flex items-center gap-2">
-                          <File className="w-4 h-4 text-primary" />
-                          <span className="text-sm font-medium">
-                            {item.fileName || "Document verified and securely stored"}
-                          </span>
+                          {(isAttached || isVerified) && (
+                            <div className="space-y-3">
+                              <div className="flex flex-col gap-3 rounded-lg bg-muted/40 p-3 md:flex-row md:items-center md:justify-between">
+                                <div className="flex items-center gap-3">
+                                  <File className="w-4 h-4 text-primary" />
+                                  <div>
+                                    <p className="text-sm font-semibold">
+                                      {uploadedDocument?.fileName ||
+                                        getDocumentDisplayName(uploadedDocument?.documentType || item.cardKey)}
+                                    </p>
+                                    <p className="text-xs text-muted-foreground">
+                                      Uploaded {formatUploadedDate(uploadedDocument?.uploadedAt)}
+                                    </p>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-3 text-sm font-medium text-primary">
+                                  {uploadedDocument?.documentUrl && (
+                                    <a
+                                      href={uploadedDocument.documentUrl}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className="hover:underline"
+                                    >
+                                      View Document
+                                    </a>
+                                  )}
+                                  {!isVerified && (
+                                    <label className="cursor-pointer hover:underline">
+                                      {uploadingDocKey === item.cardKey ? "Uploading..." : "Replace"}
+                                      <input
+                                        type="file"
+                                        accept=".pdf,.jpg,.jpeg,.png"
+                                        className="hidden"
+                                        disabled={uploadingDocKey === item.cardKey}
+                                        onChange={(e) => {
+                                          if (e.target.files?.[0]) {
+                                            uploadDocument(item, e.target.files[0]);
+                                          }
+                                        }}
+                                      />
+                                    </label>
+                                  )}
+                                </div>
+                              </div>
+                              <p className="text-xs text-muted-foreground flex items-center gap-2">
+                                <CheckCircle2 className="w-4 h-4 text-green-600" />
+                                {item.helper}
+                              </p>
+                            </div>
+                          )}
                         </div>
-                        {!isVerified && (
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveFile(item.id)}
-                          disabled={isVerified || loading}
-                          className="text-muted-foreground hover:text-destructive transition-colors"
-                        >
-                          <X className="w-4 h-4" />
-                        </button>
-                        )}
-                      </div>
-                    )}
-                    </div>
-                  );
-                })}
-              </div>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
             </div>
 
-            {/* Submit Button */}
             {!isVerified && (
               <div className="flex justify-end gap-4 pt-6 border-t">
                 <Button

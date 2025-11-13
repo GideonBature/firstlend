@@ -76,19 +76,9 @@ interface UpdateProfileRequest {
 interface KYCDocumentType {
   id: string;
   documentType: string;
+  documentUrl: string;
+  uploadedAt: string;
   fileName?: string;
-  status: string;
-  uploadedAt?: string;
-  verificationNotes?: string;
-}
-
-interface KYCDocumentsResponse {
-  bvn?: string;
-  nin?: string;
-  governmentId?: KYCDocumentType;
-  proofOfAddress?: KYCDocumentType;
-  utilityBill?: KYCDocumentType;
-  verificationStatus?: string;
 }
 
 interface KYCVerificationRequest {
@@ -481,10 +471,10 @@ export const authApi = {
     nin?: string
   ): Promise<ApiResponse<KYCDocumentType>> {
     const formData = new FormData();
-    formData.append('documentType', documentType);
-    formData.append('file', file);
-    if (bvn) formData.append('bvn', bvn);
-    if (nin) formData.append('nin', nin);
+    formData.append('DocumentType', documentType);
+    formData.append('File', file);
+    if (bvn) formData.append('Bvn', bvn);
+    if (nin) formData.append('Nin', nin);
 
     const token = localStorage.getItem('accessToken');
     const headers: HeadersInit = {};
@@ -494,13 +484,19 @@ export const authApi = {
     }
 
     try {
-      const response = await fetch(`${API_BASE_URL}/kyc/upload`, {
+      const response = await fetch(`${API_BASE_URL}/kyc/documents/upload`, {
         method: 'POST',
         headers,
         body: formData,
       });
 
-      const data = await response.json();
+      const responseBody = await response.text();
+      let data: any = null;
+      try {
+        data = responseBody ? JSON.parse(responseBody) : null;
+      } catch {
+        data = null;
+      }
 
       if (response.status === 401) {
         const refreshed = await refreshAccessToken();
@@ -510,12 +506,24 @@ export const authApi = {
         clearAuthData();
       }
 
+      const message =
+        data?.message ||
+        responseBody ||
+        (response.ok ? 'Success' : 'Error');
+
+      if (!response.ok) {
+        console.error('KYC upload failed', {
+          status: response.status,
+          message,
+        });
+      }
+
       return {
         success: response.ok,
-        message: data.message || (response.ok ? 'Success' : 'Error'),
-        data: response.ok ? data.data : undefined,
-        code: data.code,
-        errors: data.errors,
+        message,
+        data: response.ok ? data?.data : undefined,
+        code: data?.code,
+        errors: data?.errors,
       };
     } catch (error) {
       console.error('API Error:', error);
@@ -542,6 +550,15 @@ export const authApi = {
    */
   async getKYCStatus(): Promise<ApiResponse<KYCStatusResponse>> {
     return fetchApi<KYCStatusResponse>('/kyc/status', {
+      method: 'GET',
+    }, true);
+  },
+
+  /**
+   * Get uploaded KYC documents
+   */
+  async getKYCDocuments(): Promise<ApiResponse<KYCDocumentType[]>> {
+    return fetchApi<KYCDocumentType[]>('/kyc/documents', {
       method: 'GET',
     }, true);
   },
@@ -1254,5 +1271,4 @@ export type {
   NINVerification,
   FullNameVerification,
   KYCDocumentType,
-  KYCDocumentsResponse,
 };
