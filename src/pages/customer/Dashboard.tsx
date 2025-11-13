@@ -314,7 +314,7 @@ const CustomerDashboard = () => {
       <div className="space-y-6">
         {/* Welcome Section */}
         <div>
-          <h1 className="text-3xl font-bold mb-2">Welcome back, {userFirstName}!</h1>
+          <h1 className="text-2xl font-bold mb-2 md:text-3xl">Welcome back, {userFirstName}!</h1>
           <p className="text-muted-foreground">Here's what's happening with your loans today.</p>
         </div>
 
@@ -342,7 +342,7 @@ const CustomerDashboard = () => {
         {onTimePayments > 0 && (
           <Card className="border-yellow-200 bg-yellow-50">
             <CardContent className="p-4">
-              <div className="flex items-start justify-between gap-4">
+              <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between md:gap-4">
                 <div className="flex items-start gap-3">
                   <Lightbulb className="w-5 h-5 text-yellow-600 mt-0.5" />
                   <div>
@@ -351,7 +351,7 @@ const CustomerDashboard = () => {
                     </p>
                   </div>
                 </div>
-                <Button variant="ghost" size="icon" className="h-8 w-8">
+                <Button variant="ghost" size="icon" className="h-8 w-8 self-end md:self-auto">
                   <X className="w-4 h-4" />
                 </Button>
               </div>
@@ -360,7 +360,7 @@ const CustomerDashboard = () => {
         )}
 
         {/* Key Metrics Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-3 md:gap-6">
           <Card>
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
@@ -436,7 +436,7 @@ const CustomerDashboard = () => {
           </Card>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3 lg:gap-6">
           {/* Left Column */}
           <div className="lg:col-span-2 space-y-6">
             {/* Personal Loan Overview */}
@@ -456,7 +456,7 @@ const CustomerDashboard = () => {
                   </div>
                 ) : (
                   <>
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                       <div>
                         <p className="text-sm text-muted-foreground">Loan ID</p>
                         <p className="font-semibold">LN-{primaryLoan.id.substring(0, 8)}</p>
@@ -530,75 +530,77 @@ const CustomerDashboard = () => {
                 <CardTitle>Recent Transactions</CardTitle>
               </CardHeader>
               <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>DATE</TableHead>
-                      <TableHead>TYPE</TableHead>
-                      <TableHead>AMOUNT</TableHead>
-                      <TableHead>STATUS</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {isLoadingPayments ? (
+                <div className="w-full overflow-x-auto">
+                  <Table className="min-w-[520px]">
+                    <TableHeader>
                       <TableRow>
-                        <TableCell colSpan={4} className="text-center py-8">
-                          <div className="flex items-center justify-center gap-2">
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                            <span>Loading transactions...</span>
-                          </div>
-                        </TableCell>
+                        <TableHead>DATE</TableHead>
+                        <TableHead>TYPE</TableHead>
+                        <TableHead>AMOUNT</TableHead>
+                        <TableHead>STATUS</TableHead>
                       </TableRow>
-                    ) : paymentHistory.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
-                          No transactions yet
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      paymentHistory.slice(0, 5).map((transaction, index) => {
-                        const status = (transaction.status || '').toLowerCase();
-                        const isSuccess = status === 'success' || status === 'successful' || status === 'completed';
-                        const isPending = status === 'pending';
+                    </TableHeader>
+                    <TableBody>
+                      {isLoadingPayments ? (
+                        <TableRow>
+                          <TableCell colSpan={4} className="text-center py-8">
+                            <div className="flex items-center justify-center gap-2">
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                              <span>Loading transactions...</span>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ) : paymentHistory.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
+                            No transactions yet
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        paymentHistory.slice(0, 5).map((transaction, index) => {
+                          const status = (transaction.status || '').toLowerCase();
+                          const isSuccess = status === 'success' || status === 'successful' || status === 'completed';
+                          const isPending = status === 'pending';
 
-                        return (
-                          <TableRow key={index}>
-                            <TableCell>{new Date(transaction.createdAt || '').toLocaleDateString()}</TableCell>
-                            <TableCell>Repayment</TableCell>
-                            <TableCell>₦{transaction.amount?.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
-                            <TableCell>
-                              {isSuccess ? (
-                                <Badge 
-                                  variant="outline" 
-                                  className="border-emerald-200"
-                                  style={{ backgroundColor: '#d1fae5', color: '#047857' }}
-                                >
-                                  Success
-                                </Badge>
-                              ) : isPending ? (
-                                <Badge 
-                                  variant="outline" 
-                                  className="border-amber-200"
-                                  style={{ backgroundColor: '#fef3c7', color: '#b45309' }}
-                                >
-                                  Pending
-                                </Badge>
-                              ) : (
-                                <Badge 
-                                  variant="outline" 
-                                  className="border-red-200"
-                                  style={{ backgroundColor: '#fee2e2', color: '#b91c1c' }}
-                                >
-                                  {transaction.status || 'Failed'}
-                                </Badge>
-                              )}
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })
-                    )}
-                  </TableBody>
-                </Table>
+                          return (
+                            <TableRow key={index}>
+                              <TableCell>{new Date(transaction.createdAt || '').toLocaleDateString()}</TableCell>
+                              <TableCell>Repayment</TableCell>
+                              <TableCell>₦{transaction.amount?.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
+                              <TableCell>
+                                {isSuccess ? (
+                                  <Badge 
+                                    variant="outline" 
+                                    className="border-emerald-200"
+                                    style={{ backgroundColor: '#d1fae5', color: '#047857' }}
+                                  >
+                                    Success
+                                  </Badge>
+                                ) : isPending ? (
+                                  <Badge 
+                                    variant="outline" 
+                                    className="border-amber-200"
+                                    style={{ backgroundColor: '#fef3c7', color: '#b45309' }}
+                                  >
+                                    Pending
+                                  </Badge>
+                                ) : (
+                                  <Badge 
+                                    variant="outline" 
+                                    className="border-red-200"
+                                    style={{ backgroundColor: '#fee2e2', color: '#b91c1c' }}
+                                  >
+                                    {transaction.status || 'Failed'}
+                                  </Badge>
+                                )}
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
               </CardContent>
             </Card>
           </div>
@@ -682,7 +684,7 @@ const CustomerDashboard = () => {
             {/* AI Insight */}
             <Card className="border-purple-200 bg-purple-50">
               <CardContent className="p-4">
-                <div className="flex items-start gap-3">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
                   <div className="w-10 h-10 bg-purple-500 rounded-lg flex items-center justify-center flex-shrink-0">
                     <Brain className="w-5 h-5 text-white" />
                   </div>
@@ -699,7 +701,7 @@ const CustomerDashboard = () => {
             {/* Business Loan Promotion */}
             <Card className="bg-primary text-primary-foreground">
               <CardContent className="p-6">
-                <div className="flex items-start gap-3">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
                   <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center flex-shrink-0">
                     <Handshake className="w-5 h-5" />
                   </div>
@@ -725,9 +727,9 @@ const CustomerDashboard = () => {
       </div>
 
       {/* Floating Chat Assistant */}
-      <div className="fixed bottom-20 right-8 z-50 flex flex-col items-end gap-3">
+      <div className="fixed bottom-4 right-4 z-50 flex flex-col items-end gap-3 sm:bottom-6 sm:right-8">
         {isChatOpen && (
-          <div className="w-[90vw] max-w-md bg-white rounded-2xl shadow-2xl border border-blue-100">
+          <div className="w-[92vw] max-w-md bg-white rounded-2xl shadow-2xl border border-blue-100 max-h-[70vh] overflow-hidden sm:w-[90vw] sm:max-h-[80vh]">
             <div className="flex items-center justify-between px-4 py-3 border-b bg-blue-50 rounded-t-2xl">
               <div>
                 <p className="font-semibold text-sm text-blue-900">FirstLend AI Assistant</p>
@@ -744,7 +746,7 @@ const CustomerDashboard = () => {
         )}
 
         <Button
-          className="rounded-full shadow-lg bg-primary hover:bg-primary/90 w-16 h-16"
+          className="rounded-full shadow-lg bg-primary hover:bg-primary/90 w-14 h-14 sm:w-16 sm:h-16"
           onClick={() => setIsChatOpen((prev) => !prev)}
         >
           <MessageCircle className="w-7 h-7 text-white" />

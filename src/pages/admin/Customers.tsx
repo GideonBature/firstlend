@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Search, Download, MoreVertical, Loader2 } from "lucide-react";
+import { Search, Download, Menu, Loader2 } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -259,9 +259,9 @@ const AdminCustomers = () => {
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
               </div>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2 md:justify-end">
                 <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="w-[140px]">
+                  <SelectTrigger className="w-full sm:w-[140px]">
                     <SelectValue placeholder="Status: All" />
                   </SelectTrigger>
                   <SelectContent>
@@ -272,7 +272,7 @@ const AdminCustomers = () => {
                   </SelectContent>
                 </Select>
                 <Select value={sortBy} onValueChange={setSortBy}>
-                  <SelectTrigger className="w-[180px]">
+                  <SelectTrigger className="w-full sm:w-[180px]">
                     <SelectValue placeholder="Sort By" />
                   </SelectTrigger>
                   <SelectContent>
@@ -281,7 +281,7 @@ const AdminCustomers = () => {
                     <SelectItem value="status">Status</SelectItem>
                   </SelectContent>
                 </Select>
-                <Button variant="outline" className="gap-2">
+                <Button variant="outline" className="gap-2 w-full justify-center sm:w-auto">
                   <Download className="w-4 h-4" />
                   Export List
                 </Button>
@@ -349,7 +349,7 @@ const AdminCustomers = () => {
                             </td>
                             <td className="py-3 px-4">
                               <Button variant="ghost" size="icon">
-                                <MoreVertical className="w-4 h-4" />
+                                <Menu className="w-4 h-4" />
                               </Button>
                             </td>
                           </tr>

@@ -187,9 +187,9 @@ const AdminDashboard = () => {
   return (
     <AdminLayout>
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-3xl font-bold">Admin Dashboard</h1>
+            <h1 className="text-2xl font-bold md:text-3xl">Admin Dashboard</h1>
             <p className="text-muted-foreground">A summary of key operational metrics and recent activities.</p>
           </div>
         </div>
@@ -203,7 +203,7 @@ const AdminDashboard = () => {
         {/* AI-Powered Insights */}
         <Card className="border-purple-200 bg-blue-50">
           <CardContent className="p-4">
-            <div className="flex items-start gap-3">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
               <div className="w-10 h-10 bg-purple-500 rounded-lg flex items-center justify-center flex-shrink-0">
                 <Sparkles className="w-5 h-5 text-white" />
               </div>
@@ -247,7 +247,7 @@ const AdminDashboard = () => {
         </Card>
 
         {/* Date Filters */}
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           {periodOptions.map((option) => (
             <Button
               key={option.key}
@@ -261,7 +261,7 @@ const AdminDashboard = () => {
         </div>
 
         {/* Key Metrics Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-3 md:gap-6">
           {metrics.map((metric) => {
             const change = typeof metric.change === "number" ? metric.change : undefined;
             const changePositive = (change ?? 0) >= 0;
@@ -295,7 +295,7 @@ const AdminDashboard = () => {
         </div>
 
         {/* Charts */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-6">
           <Card>
             <CardHeader>
               <CardTitle>Loan Application Status</CardTitle>
