@@ -52,6 +52,22 @@ const REQUIRED_DOCUMENTS: DocumentDefinition[] = [
     apiDocumentType: "proof_of_address",
     helper: "Document verified and securely stored",
   },
+  {
+    id: "bank-statement",
+    title: "Bank Statement",
+    description: "Most recent 3-month bank statement (PDF preferred)",
+    cardKey: "bank_statement",
+    apiDocumentType: "bank_statement",
+    helper: "Statement received and stored securely",
+  },
+  {
+    id: "guarantor-doc",
+    title: "Guarantor Document",
+    description: "Single PDF containing atleast 3-month bank statement, passport photo, government-issued ID, CAC/work ID, signed guarantor form, and utility bill",
+    cardKey: "guarantor_document",
+    apiDocumentType: "guarantor_document",
+    helper: "All guarantor evidence received and stored securely",
+  },
 ];
 
 type VerificationStep = "idle" | "verifying-bvn" | "bvn-success" | "verifying-nin" | "nin-success" | "completed";
@@ -520,7 +536,13 @@ export function KYCDocumentsUpload({ onVerificationComplete }: KYCDocumentsUploa
                                 <div className="flex flex-col items-center gap-2 text-sm text-muted-foreground">
                                   <Upload className="w-4 h-4" />
                                   <span>Click to upload or drag and drop</span>
-                                  <span className="text-xs text-muted-foreground">PNG, JPG, or PDF (max 5MB)</span>
+                                  <span className="text-xs text-muted-foreground">
+                                    {item.cardKey === "guarantor_document"
+                                      ? "Upload a single PDF containing all guarantor evidence"
+                                      : item.cardKey === "bank_statement"
+                                      ? "Upload your latest statement (PDF preferred, max 5MB)"
+                                      : "PNG, JPG, or PDF (max 5MB)"}
+                                  </span>
                                 </div>
                               </div>
                               <input

@@ -210,6 +210,8 @@ interface LoanResponse {
   createdAt: string;
   dueAt: string;
   paymentProgress: number;
+  bankStatementUrl?: string;
+  guarantorDocumentUrl?: string;
 }
 
 // Additional, more structured Loan types derived from LoanResponse.
@@ -848,8 +850,10 @@ interface LoanProductPayload {
 }
 
 interface InitializeDisbursementResponse {
-  authorizationUrl: string;
-  reference: string;
+  authorizationUrl?: string;
+  reference?: string;
+  status?: string;
+  message?: string;
 }
 
 interface VerifyDisbursementResponse {

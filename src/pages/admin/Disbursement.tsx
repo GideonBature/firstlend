@@ -246,12 +246,20 @@ const AdminDisbursement = () => {
       const response = await adminApi.initializeDisbursement(loan.id);
       const authorizationUrl = response.data?.authorizationUrl;
 
-      if (response.success && authorizationUrl) {
-        toast({
-          title: "Redirecting to Paystack",
-          description: "Complete the checkout to finalize this disbursement.",
-        });
-        window.location.assign(authorizationUrl);
+      if (response.success) {
+        if (authorizationUrl) {
+          toast({
+            title: "Redirecting to Paystack",
+            description: "Complete the checkout to finalize this disbursement.",
+          });
+          window.location.assign(authorizationUrl);
+        } else {
+          toast({
+            title: "Disbursement Initiated",
+            description: response.message || "Loan marked as disbursed successfully.",
+          });
+          await Promise.all([fetchLoans(), fetchStats()]);
+        }
         return;
       }
 

@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Search, Plus, AlertCircle, Loader2 } from "lucide-react";
+import { Search, Plus, AlertCircle, Loader2, Eye, EyeOff } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -233,6 +233,49 @@ const AdminApplications = () => {
       normalizedStatus === "active"
     );
   };
+
+  const renderVerificationCell = (app: LoanResponse) => {
+    const links = [
+      {
+        label: "BS",
+        url: app.bankStatementUrl,
+        srLabel: "View bank statement",
+      },
+      {
+        label: "GD",
+        url: app.guarantorDocumentUrl,
+        srLabel: "View guarantor document",
+      },
+    ];
+
+    return (
+      <div className="flex flex-wrap gap-4">
+        {links.map((item) => (
+          <div key={item.label} className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
+            <span>{item.label}</span>
+            {item.url ? (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 rounded-full border border-border hover:bg-primary/10"
+                asChild
+              >
+                <a href={item.url} target="_blank" rel="noreferrer">
+                  <Eye className="h-4 w-4 text-primary" aria-hidden="true" />
+                  <span className="sr-only">{item.srLabel}</span>
+                </a>
+              </Button>
+            ) : (
+              <span className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-dashed border-border text-muted-foreground/60">
+                <EyeOff className="h-4 w-4" aria-hidden="true" />
+                <span className="sr-only">{`${item.label === "BS" ? "Bank statement" : "Guarantor document"} not uploaded`}</span>
+              </span>
+            )}
+          </div>
+        ))}
+      </div>
+    );
+  };
   return (
     <AdminLayout>
       <div className="space-y-6">
@@ -240,6 +283,9 @@ const AdminApplications = () => {
           <div>
             <h1 className="text-3xl font-bold">Loan Applications</h1>
             <p className="text-muted-foreground">Review and manage loan applications</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              BS = Bank Statement • GD = Guarantor Document
+            </p>
           </div>
           <Button className="gap-2 w-full justify-center sm:w-auto">
             <Plus className="w-4 h-4" />
@@ -319,6 +365,7 @@ const AdminApplications = () => {
                         <th className="text-left py-3 px-4 font-medium">Amount</th>
                         <th className="text-left py-3 px-4 font-medium">Submitted</th>
                         <th className="text-left py-3 px-4 font-medium">Status</th>
+                        <th className="text-left py-3 px-4 font-medium">Verify</th>
                         <th className="text-left py-3 px-4 font-medium">Actions</th>
                       </tr>
                     </thead>
@@ -346,6 +393,9 @@ const AdminApplications = () => {
                             >
                               {app.status.charAt(0).toUpperCase() + app.status.slice(1)}
                             </Badge>
+                          </td>
+                          <td className="py-3 px-4">
+                            {renderVerificationCell(app)}
                           </td>
                           <td className="py-3 px-4">
                             <div className="flex gap-2">
