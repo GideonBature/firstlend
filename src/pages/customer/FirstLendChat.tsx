@@ -1,10 +1,9 @@
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Card } from "@/components/ui/card";
 import { Loader2, SendHorizontal, Sparkles, Bot, User } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Badge } from "@/components/ui/badge";
+import ReactMarkdown from "react-markdown";
 
 interface Message {
   role: "user" | "assistant";
@@ -53,10 +52,25 @@ function FirstLendChat() {
         };
         setMessages((prev) => [...prev, errorMessage]);
       } else {
-        const data = await res.text();
+        const rawText = await res.text();
+        let parsedResponse = rawText;
+
+        try {
+          const json = JSON.parse(rawText);
+          if (typeof json === "string") {
+            parsedResponse = json;
+          } else if (json?.response) {
+            parsedResponse = json.response;
+          } else if (json?.data?.response) {
+            parsedResponse = json.data.response;
+          }
+        } catch {
+          // leave parsedResponse as raw text if parsing fails
+        }
+
         const assistantMessage: Message = {
           role: "assistant",
-          content: data,
+          content: parsedResponse,
           timestamp: new Date(),
         };
         setMessages((prev) => [...prev, assistantMessage]);
@@ -127,9 +141,9 @@ function FirstLendChat() {
                       : "bg-white border border-gray-200 text-gray-900 rounded-tl-sm shadow-sm"
                   }`}
                 >
-                  <p className="text-sm whitespace-pre-wrap leading-relaxed">
-                    {message.content}
-                  </p>
+                  <div className="text-sm leading-relaxed prose prose-sm max-w-none whitespace-pre-wrap">
+                    <ReactMarkdown>{message.content}</ReactMarkdown>
+                  </div>
                 </div>
                 <p className="text-xs text-muted-foreground px-2">
                   {message.timestamp.toLocaleTimeString([], {

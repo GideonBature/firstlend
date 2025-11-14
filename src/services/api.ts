@@ -300,13 +300,14 @@ async function fetchApi<T>(
       headers,
     });
 
+    const responseText = await response.text();
     let data;
     try {
-      data = await response.json();
+      data = responseText ? JSON.parse(responseText) : {};
     } catch (parseError) {
       console.error('JSON parse error:', parseError);
       console.error('Response status:', response.status);
-      console.error('Response text:', await response.text());
+      console.error('Response text:', responseText);
       return {
         success: false,
         message: `Server error (Status ${response.status}): Invalid response format`,
