@@ -4,7 +4,7 @@
  */
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { authApi, getStoredUser, isAuthenticated, clearAuthData } from '@/services/api';
+import { authApi, getStoredUser, isAuthenticated, clearAuthData, type RegisterResponse } from '@/services/api';
 
 export interface User {
   userId: string;
@@ -25,7 +25,9 @@ interface AuthContextType {
   userType: 'customer' | 'admin' | null;
   error: string | null;
   login: (emailOrUsername: string, password: string, userType: 'customer' | 'admin') => Promise<void>;
-  register: (fullName: string, email: string, phone: string, password: string, address?: string) => Promise<void>;
+  register: (fullName: string, email: string, phone: string, password: string, address?: string) => Promise<RegisterResponse>;
+  verifyEmail: (email: string, token: string) => Promise<void>;
+  resendVerification: (email: string) => Promise<void>;
   logout: () => Promise<void>;
   clearError: () => void;
   refreshUserData: () => Promise<void>;
@@ -106,7 +108,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  const register = async (fullName: string, email: string, phone: string, password: string, address?: string) => {
+  const register = async (fullName: string, email: string, phone: string, password: string, address?: string): Promise<RegisterResponse> => {
     setIsLoading(true);
     setError(null);
 
@@ -124,15 +126,27 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         throw new Error(response.message);
       }
 
-      // Auto-login after successful registration (optional)
-      // You can comment this out if you want users to manually login
-      // await login(email, password, 'customer');
+      return response.data as RegisterResponse;
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Registration failed';
       setError(errorMessage);
       throw err;
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const verifyEmail = async (email: string, token: string) => {
+    const response = await authApi.verifyEmail({ email, token });
+    if (!response.success) {
+      throw new Error(response.message || 'Verification failed');
+    }
+  };
+
+  const resendVerification = async (email: string) => {
+    const response = await authApi.resendVerification({ email });
+    if (!response.success) {
+      throw new Error(response.message || 'Unable to resend verification code');
     }
   };
 
@@ -258,6 +272,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     error,
     login,
     register,
+    verifyEmail,
+    resendVerification,
     logout,
     clearError,
     refreshUserData,

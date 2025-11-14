@@ -118,6 +118,19 @@ const Login = () => {
                 Forgot Password?
               </button>
             </div>
+            <div className="text-center text-xs text-muted-foreground">
+              Need to verify your email?{" "}
+              <button
+                type="button"
+                onClick={() =>
+                  navigate(`/verify-email${email ? `?email=${encodeURIComponent(email)}` : ""}`)
+                }
+                className="text-primary hover:underline font-medium disabled:opacity-50"
+                disabled={isLoading}
+              >
+                Enter verification code
+              </button>
+            </div>
             <Button type="submit" className="w-full" disabled={isLoading}>
               {isLoading ? (
                 <>

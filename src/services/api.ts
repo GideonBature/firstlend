@@ -42,11 +42,20 @@ interface RegisterRequest {
   password: string;
 }
 
-interface RegisterResponse {
+export interface RegisterResponse {
   userId: string;
   email: string;
   fullName: string;
   userType: string;
+}
+
+interface VerifyEmailRequest {
+  email: string;
+  token: string;
+}
+
+interface ResendVerificationRequest {
+  email: string;
 }
 
 interface CurrentUserResponse {
@@ -348,6 +357,26 @@ export const authApi = {
    */
   async register(payload: RegisterRequest): Promise<ApiResponse<RegisterResponse>> {
     return fetchApi<RegisterResponse>('/auth/register', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  /**
+   * Verify email with OTP/bypass code
+   */
+  async verifyEmail(payload: VerifyEmailRequest): Promise<ApiResponse<null>> {
+    return fetchApi<null>('/auth/verify-email', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  /**
+   * Resend verification code
+   */
+  async resendVerification(payload: ResendVerificationRequest): Promise<ApiResponse<null>> {
+    return fetchApi<null>('/auth/resend-verification', {
       method: 'POST',
       body: JSON.stringify(payload),
     });
@@ -856,10 +885,12 @@ interface InitializeDisbursementResponse {
   message?: string;
 }
 
-interface VerifyDisbursementResponse {
-  loan: LoanResponse;
+interface DisbursementStatusResponse {
+  loanId: string;
   status: string;
-  reference: string;
+  isDisbursed: boolean;
+  disbursedAt?: string;
+  amount?: number;
 }
 
 /**
@@ -1047,15 +1078,10 @@ export const adminApi = {
   },
 
   /**
-   * Verify Paystack disbursement callback
+   * Get Paystack disbursement status (after callback redirect)
    */
-  async verifyDisbursement(loanId: string, reference: string): Promise<ApiResponse<VerifyDisbursementResponse>> {
-    const queryParams = new URLSearchParams();
-    if (reference) {
-      queryParams.append('reference', reference);
-    }
-
-    return fetchApi<VerifyDisbursementResponse>(`/admin/loans/${loanId}/disburse/verify?${queryParams.toString()}`, {
+  async getDisbursementStatus(loanId: string): Promise<ApiResponse<DisbursementStatusResponse>> {
+    return fetchApi<DisbursementStatusResponse>(`/admin/loans/${loanId}/disburse/status`, {
       method: 'GET',
     }, true);
   },
@@ -1275,4 +1301,5 @@ export type {
   NINVerification,
   FullNameVerification,
   KYCDocumentType,
+  RegisterResponse,
 };

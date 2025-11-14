@@ -319,17 +319,17 @@ const CustomerDashboard = () => {
         </div>
 
         {isKYCVerified === false && (
-          <Alert className="border-blue-200 bg-blue-50">
+          <Alert className="border-red-200 bg-red-50">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <AlertTitle className="text-blue-900">Complete Your KYC Verification</AlertTitle>
+                <AlertTitle className="text-red-900">Complete Your KYC Verification</AlertTitle>
                 <AlertDescription>
-                  Verify your identity to unlock higher loan limits and faster approvals.
+                  Complete KYC now to apply for a loan and keep your application moving.
                 </AlertDescription>
               </div>
               <Button
                 size="sm"
-                className="w-full sm:w-auto"
+                className="w-full sm:w-auto bg-red-600 hover:bg-red-700"
                 onClick={() => navigate("/customer/profile", { state: { defaultTab: "kyc" } })}
               >
                 Complete KYC

@@ -9,6 +9,7 @@ import Index from "./pages/Index";
 import Login from "./pages/Login";
 import AdminLogin from "./pages/AdminLogin";
 import Register from "./pages/Register";
+import VerifyEmail from "./pages/VerifyEmail";
 import AdminDashboard from "./pages/admin/Dashboard";
 import AdminApplications from "./pages/admin/Applications";
 import AdminCustomers from "./pages/admin/Customers";
@@ -16,7 +17,6 @@ import AdminPayments from "./pages/admin/Payments";
 import AdminProducts from "./pages/admin/Products";
 import AdminUsers from "./pages/admin/AdminUsers";
 import AdminDisbursement from "./pages/admin/Disbursement";
-import AdminDisbursementCallback from "./pages/admin/DisbursementCallback";
 import AdminSettings from "./pages/admin/Settings";
 import CustomerDashboard from "./pages/customer/Dashboard";
 import CustomerLoans from "./pages/customer/MyLoans";
@@ -44,6 +44,7 @@ const App = () => (
             <Route path="/login" element={<Login />} />
             <Route path="/admin/login" element={<AdminLogin />} />
             <Route path="/register" element={<Register />} />
+            <Route path="/verify-email" element={<VerifyEmail />} />
             <Route
               path="/admin/dashboard"
               element={
@@ -97,14 +98,6 @@ const App = () => (
               element={
                 <ProtectedRoute allowedUserTypes={["admin"]}>
                   <AdminDisbursement />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/disbursement/callback"
-              element={
-                <ProtectedRoute allowedUserTypes={["admin"]}>
-                  <AdminDisbursementCallback />
                 </ProtectedRoute>
               }
             />

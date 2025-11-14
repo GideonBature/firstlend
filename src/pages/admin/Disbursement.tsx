@@ -96,28 +96,54 @@ const AdminDisbursement = () => {
   useEffect(() => {
     const disburseStatus = searchParams.get("disburse_status");
     if (!disburseStatus) return;
+
     const normalizedStatus = disburseStatus.toLowerCase();
+    const message = searchParams.get("disburse_message") || undefined;
+    const loanId = searchParams.get("loanId") || undefined;
 
-    const message = searchParams.get("disburse_message");
-    if (normalizedStatus === "success") {
-      toast({
-        title: "Disbursement Successful",
-        description: message || "Loan has been disbursed successfully.",
-      });
-      fetchLoans();
-      fetchStats();
-    } else {
-      toast({
-        title: "Disbursement Failed",
-        description: message || "Unable to complete disbursement.",
-        variant: "destructive",
-      });
-    }
+    const handleStatusToast = async () => {
+      if (normalizedStatus === "success") {
+        let description = message || "Loan has been disbursed successfully.";
 
-    const nextParams = new URLSearchParams(searchParams);
-    nextParams.delete("disburse_status");
-    nextParams.delete("disburse_message");
-    setSearchParams(nextParams, { replace: true });
+        if (loanId) {
+          try {
+            const statusResponse = await adminApi.getDisbursementStatus(loanId);
+            if (statusResponse.success && statusResponse.data) {
+              const { status, amount, disbursedAt } = statusResponse.data;
+              const disbursedDate = disbursedAt
+                ? new Date(disbursedAt).toLocaleString()
+                : "just now";
+              const formattedAmount = formatCurrency(amount || 0);
+              description = `${formattedAmount} disbursed ${disbursedDate}. Loan is now ${status.toLowerCase()}.`;
+            }
+          } catch (error) {
+            console.error("Failed to fetch disbursement status:", error);
+          }
+        }
+
+        toast({
+          title: "Disbursement Successful",
+          description,
+        });
+
+        fetchLoans();
+        fetchStats();
+      } else {
+        toast({
+          title: "Disbursement Failed",
+          description: message || "Unable to complete disbursement.",
+          variant: "destructive",
+        });
+      }
+
+      const nextParams = new URLSearchParams(searchParams);
+      nextParams.delete("disburse_status");
+      nextParams.delete("disburse_message");
+      nextParams.delete("loanId");
+      setSearchParams(nextParams, { replace: true });
+    };
+
+    handleStatusToast();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
 

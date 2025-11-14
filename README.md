@@ -27,7 +27,7 @@ This application features two main portals:
   * **Admin Dashboard**: A central dashboard (`Dashboard.tsx`) displaying key metrics, recent applications, and system statistics.
   * **Application Management**: A complete interface for admins to view, filter, approve, or reject new loan applications (`Applications.tsx`).
   * **Customer Management**: A full list of all registered customers (`Customers.tsx`), including search and filtering.
-  * **Loan Disbursement**: A dedicated module for managing and initiating loan payouts to customers (`Disbursement.tsx`), including its own payment callback (`DisbursementCallback.tsx`).
+  * **Loan Disbursement**: A dedicated module for managing and initiating loan payouts to customers (`Disbursement.tsx`) with integrated Paystack callback handling.
   * **User Management (Admins)**: Ability to manage other admin-level users (`AdminUsers.tsx`).
   * **Product Management**: An interface for creating and managing the different loan types offered by FirstLend (`Products.tsx`).
   * **Payment Overview**: A view of all payments processed by the system (`Payments.tsx`).

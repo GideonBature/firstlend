@@ -67,7 +67,7 @@ const Register = () => {
     try {
       clearError();
 
-      await registerUser(
+      const result = await registerUser(
         data.fullName,
         data.email,
         data.phone,
@@ -76,11 +76,12 @@ const Register = () => {
       );
 
       toast({
-        title: "Success",
-        description: "Registration successful! Please log in.",
+        title: "Verify Your Email",
+        description: "We sent a 6-digit code to your inbox. Enter it to activate your account.",
       });
 
-      navigate("/login");
+      const targetEmail = result?.email || data.email || "";
+      navigate(`/verify-email?email=${encodeURIComponent(targetEmail)}`);
     } catch (err) {
       console.error("Registration error:", err);
       toast({
