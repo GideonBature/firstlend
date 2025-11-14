@@ -893,6 +893,56 @@ interface DisbursementStatusResponse {
   amount?: number;
 }
 
+export interface CustomerDashboardProfileSummary {
+  fullName: string;
+  email: string;
+  isKycVerified: boolean;
+  emailVerified: boolean;
+}
+
+export interface CustomerDashboardCreditSummary {
+  score: number;
+  rating: string;
+  totalAccounts: number;
+}
+
+export interface CustomerDashboardLoanSummary {
+  totalLoans: number;
+  activeLoans: number;
+  totalBorrowed: number;
+  totalOutstanding: number;
+}
+
+export interface CustomerDashboardPaymentSummary {
+  totalPaid: number;
+  paymentSuccessRate: number;
+  nextPaymentDueDate?: string;
+  nextPaymentAmount?: number;
+}
+
+export interface CustomerDashboardSummary {
+  profile: CustomerDashboardProfileSummary;
+  creditScore: CustomerDashboardCreditSummary;
+  loanSummary: CustomerDashboardLoanSummary;
+  paymentSummary: CustomerDashboardPaymentSummary;
+  recentTransactions: PaymentHistoryRecord[];
+}
+
+export interface CustomerAIInsightMetrics {
+  creditScore?: number;
+  creditRating?: string;
+  activeLoans?: number;
+  totalOutstanding?: number;
+  paymentSuccessRate?: number;
+  nextPaymentDue?: string;
+}
+
+export interface CustomerAIInsight {
+  insight: string;
+  metrics?: CustomerAIInsightMetrics;
+  generatedAt?: string;
+}
+
 /**
  * Admin API calls
  */
@@ -1235,6 +1285,29 @@ export const paymentApi = {
     const endpoint = `/payment-history${queryString ? `?${queryString}` : ''}`;
     
     return fetchApi<PaymentHistoryRecord[]>(endpoint, {
+      method: 'GET',
+    }, true);
+  },
+};
+
+/**
+ * Customer dashboard API calls
+ */
+export const customerDashboardApi = {
+  /**
+   * Get aggregated dashboard summary for the current customer
+   */
+  async getSummary(): Promise<ApiResponse<CustomerDashboardSummary>> {
+    return fetchApi<CustomerDashboardSummary>('/dashboard/summary', {
+      method: 'GET',
+    }, true);
+  },
+
+  /**
+   * Get AI-generated insights for the current customer
+   */
+  async getAIInsights(): Promise<ApiResponse<CustomerAIInsight>> {
+    return fetchApi<CustomerAIInsight>('/dashboard/ai-insights', {
       method: 'GET',
     }, true);
   },

@@ -11,8 +11,8 @@ import { DollarSign, TrendingUp, Calendar, Lightbulb, X, Brain, Handshake, Loade
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import FirstLendChat from "@/pages/customer/FirstLendChat";
 import { useAuth } from "@/contexts/AuthContext";
-import { authApi, loanApi, paymentApi } from "@/services/api";
-import type { LoanResponse, PaymentHistoryRecord } from "@/services/api";
+import { authApi, loanApi, paymentApi, customerDashboardApi } from "@/services/api";
+import type { LoanResponse, PaymentHistoryRecord, CustomerAIInsight } from "@/services/api";
 
 const creditScoreTrendData = [
   { month: "Jan", score: 695 },
@@ -26,6 +26,23 @@ const creditScoreTrendData = [
   { month: "Sep", score: 720 },
   { month: "Oct", score: 720 },
 ];
+
+const formatCurrency = (value?: number) =>
+  new Intl.NumberFormat("en-NG", {
+    style: "currency",
+    currency: "NGN",
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(value ?? 0);
+
+const formatDate = (value?: string) => {
+  if (!value) return "N/A";
+  return new Date(value).toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+};
 
 const CustomerDashboard = () => {
   const navigate = useNavigate();
@@ -44,6 +61,9 @@ const CustomerDashboard = () => {
   const [onTimePayments, setOnTimePayments] = useState(0);
   const [isKYCVerified, setIsKYCVerified] = useState<boolean | null>(null);
   const [isChatOpen, setIsChatOpen] = useState(false);
+  const [aiInsight, setAiInsight] = useState<CustomerAIInsight | null>(null);
+  const [isLoadingAIInsight, setIsLoadingAIInsight] = useState(true);
+  const [aiInsightError, setAiInsightError] = useState<string | null>(null);
   
   const userFirstName = useMemo(() => {
     if (!user?.fullName) {
@@ -125,6 +145,28 @@ const CustomerDashboard = () => {
     };
 
     fetchDashboardData();
+  }, []);
+
+  useEffect(() => {
+    const fetchAIInsight = async () => {
+      try {
+        setIsLoadingAIInsight(true);
+        const response = await customerDashboardApi.getAIInsights();
+        if (response.success && response.data) {
+          setAiInsight(response.data);
+          setAiInsightError(null);
+        } else {
+          setAiInsightError(response.message || "Unable to load AI insight.");
+        }
+      } catch (error) {
+        console.error("Error fetching AI insight:", error);
+        setAiInsightError("Unable to load AI insight.");
+      } finally {
+        setIsLoadingAIInsight(false);
+      }
+    };
+
+    fetchAIInsight();
   }, []);
 
   // Get color based on credit rating
@@ -684,17 +726,77 @@ const CustomerDashboard = () => {
             {/* AI Insight */}
             <Card className="border-purple-200 bg-purple-50">
               <CardContent className="p-4">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
-                  <div className="w-10 h-10 bg-purple-500 rounded-lg flex items-center justify-center flex-shrink-0">
-                    <Brain className="w-5 h-5 text-white" />
+                {isLoadingAIInsight ? (
+                  <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                    <Loader2 className="w-4 h-4 animate-spin text-purple-500" />
+                    Generating personalized insight...
                   </div>
-                  <div>
-                    <h3 className="font-semibold mb-2">AI Insight</h3>
-                    <p className="text-sm text-muted-foreground">
-                      Based on your payment history, you're on track to improve your credit score by +30 points in the next 6 months! Make timely payments to unlock better rates.
-                    </p>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
+                      <div className="w-10 h-10 bg-purple-500 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <Brain className="w-5 h-5 text-white" />
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between gap-3">
+                          <h3 className="font-semibold">AI Insight</h3>
+                          {aiInsight?.generatedAt && (
+                            <span className="text-xs text-muted-foreground">
+                              Updated {formatDate(aiInsight.generatedAt)}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-sm text-muted-foreground">
+                          {aiInsight?.insight ||
+                            aiInsightError ||
+                            "We couldn't generate a personalized insight right now. Please check back later."}
+                        </p>
+                      </div>
+                    </div>
+                    {aiInsight?.metrics && (
+                      <div className="grid grid-cols-2 gap-3 text-sm">
+                        <div className="rounded-lg bg-white/60 p-3">
+                          <p className="text-xs text-muted-foreground">Credit Score</p>
+                          <p className="font-semibold">
+                            {aiInsight.metrics.creditScore ?? "—"}
+                            {aiInsight.metrics.creditRating ? (
+                              <span className="ml-1 text-xs text-muted-foreground">
+                                ({aiInsight.metrics.creditRating})
+                              </span>
+                            ) : null}
+                          </p>
+                        </div>
+                        <div className="rounded-lg bg-white/60 p-3">
+                          <p className="text-xs text-muted-foreground">Active Loans</p>
+                          <p className="font-semibold">{aiInsight.metrics.activeLoans ?? 0}</p>
+                        </div>
+                        <div className="rounded-lg bg-white/60 p-3">
+                          <p className="text-xs text-muted-foreground">Outstanding Balance</p>
+                          <p className="font-semibold">
+                            {formatCurrency(aiInsight.metrics.totalOutstanding ?? 0)}
+                          </p>
+                        </div>
+                        <div className="rounded-lg bg-white/60 p-3">
+                          <p className="text-xs text-muted-foreground">Payment Success</p>
+                          <p className="font-semibold">
+                            {aiInsight.metrics.paymentSuccessRate !== undefined
+                              ? `${aiInsight.metrics.paymentSuccessRate.toFixed(1)}%`
+                              : "—"}
+                          </p>
+                        </div>
+                        <div className="rounded-lg bg-white/60 p-3 col-span-2">
+                          <p className="text-xs text-muted-foreground">Next Payment Due</p>
+                          <p className="font-semibold">
+                            {formatDate(aiInsight.metrics.nextPaymentDue)}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                    {!aiInsight?.metrics && aiInsightError && (
+                      <p className="text-xs text-red-600">{aiInsightError}</p>
+                    )}
                   </div>
-                </div>
+                )}
               </CardContent>
             </Card>
 
